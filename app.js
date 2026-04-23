@@ -110,6 +110,7 @@ const els = {
   officialDomainInput: document.getElementById("officialDomainInput"),
   competitorsInput: document.getElementById("competitorsInput"),
   buildResearchLinksButton: document.getElementById("buildResearchLinksButton"),
+  openResearchSweepButton: document.getElementById("openResearchSweepButton"),
   saveResearchLogButton: document.getElementById("saveResearchLogButton"),
   researchLinks: document.getElementById("researchLinks"),
   savedResearchSummary: document.getElementById("savedResearchSummary"),
@@ -223,6 +224,7 @@ function attachEvents() {
   els.savePlatformButton.addEventListener("click", savePlatformProfile);
   els.platformSelect.addEventListener("change", renderPlatformPresetSummary);
   els.buildResearchLinksButton.addEventListener("click", renderResearchLinks);
+  els.openResearchSweepButton.addEventListener("click", openResearchSweep);
   els.saveResearchLogButton.addEventListener("click", saveResearchLog);
   els.keywordsInput.addEventListener("input", renderResearchLinks);
   els.researchSubjectInput.addEventListener("input", renderResearchLinks);
@@ -525,6 +527,12 @@ function buildResearchLinks(brief, subject) {
       description: "プレスリリース、発表、アナウンスを確認する",
       url: `https://www.google.com/search?q=${encodeURIComponent(`site:${normalizedDomain} (${subject}) (news OR newsroom OR press release OR announcement OR blog)`)}`,
     });
+    links.push({
+      group: "Official Research",
+      label: "公式ヘルプ / FAQ を探す",
+      description: "仕様変更、利用可否、プラン条件を確認する",
+      url: `https://www.google.com/search?q=${encodeURIComponent(`site:${normalizedDomain} ${subject} (help OR faq OR support OR pricing OR plan)`)}`,
+    });
   }
 
   if (brief.researchTargets.includes("周辺事例")) {
@@ -551,6 +559,13 @@ function buildResearchLinks(brief, subject) {
     url: `https://www.google.com/search?q=${encodeURIComponent(subject)}`,
   });
 
+  links.push({
+    group: "General Verification",
+    label: "SNS上の反応を検索する",
+    description: "実際に困っている人や話題化の有無を探る",
+    url: `https://www.google.com/search?q=${encodeURIComponent(`${subject} X OR Twitter OR Reddit OR Threads`)}`,
+  });
+
   return links.sort((left, right) => rankResearchGroup(left.group) - rankResearchGroup(right.group));
 }
 
@@ -562,6 +577,15 @@ function rankResearchGroup(group) {
     return 1;
   }
   return 2;
+}
+
+function openResearchSweep() {
+  const brief = collectBrief();
+  const subject = brief.researchSubject || brief.keywords || brief.topic;
+  const links = buildResearchLinks(brief, subject).slice(0, 6);
+  links.forEach((link) => {
+    window.open(link.url, "_blank", "noopener,noreferrer");
+  });
 }
 
 function buildPlanFromInputs() {
@@ -699,6 +723,12 @@ function buildDraft(planText) {
   const factLine = brief.facts || "確認済みの事実をもとに";
   const cautionLine = brief.openQuestions ? `未確認の点として ${brief.openQuestions} は断定せず扱います。` : "";
   const sourceLine = brief.sourceUrls.length ? `参照元: ${brief.sourceUrls.join(" / ")}` : "";
+  const leadSubject = brief.researchSubject || brief.keywords || brief.topic || "この話題";
+  const leadFact = firstSentence(factLine);
+  const leadInsight = firstSentence(brief.insights || "");
+  const compellingHook = buildCompellingHook(leadSubject, leadFact, brief.platform);
+  const naturalReaction = buildNaturalReaction(leadInsight, brief.openQuestions, brief.platform);
+  const verdictLine = buildVerdictLine(leadSubject, leadFact);
 
   let draft = "";
 
@@ -712,57 +742,72 @@ function buildDraft(planText) {
     draft = [
       `# ${titlePrefix}`,
       "",
+      compellingHook,
+      "",
       `目安: ${profile.lengthGuide || "未設定"} / 見出し: ${profile.headingCount || "未設定"}`,
       "",
-      `${summaryLine}、今日は ${audienceText} に向けて、いま押さえておきたいポイントを整理します。`,
+      `${summaryLine}。今日は ${audienceText} に向けて、いま押さえておきたいポイントを整理します。`,
       "",
       "## まず見えてきたこと",
-      `${factLine}。${brief.topic || "話題の輪郭はまだ粗くても"}、Googleトレンドや公式ニュースを確認すると、注目されている理由と実際の使われ方の差が見えてきます。`,
+      `${verdictLine}${brief.topic ? ` ${brief.topic} という見方で追うと、` : " "}Googleトレンドや公式ニュースを確認すると、注目されている理由と実際の使われ方の差が見えてきます。`,
       "",
       "## 発信に落とし込むときの考え方",
-      `${planText.split("\n").slice(0, 6).join(" ")}`,
+      `${brief.insights ? `今回いちばん大きいのは、${brief.insights}` : naturalReaction}`,
       "",
       `${brief.mustInclude ? `特に今回は ${brief.mustInclude} を軸にすると、読者が自分ごと化しやすくなります。` : "単なる情報整理で終わらせず、読者が次にどう動けるかまで落とし込むのがポイントです。"}`,
-      `${brief.insights ? `現時点の読みとしては、${brief.insights}` : ""}`,
+      `${planText.split("\n").slice(0, 4).join(" ")}`,
       `${cautionLine}`,
       "",
       "## まとめ",
-      `${account?.goal || "反応を得ること"} を意識するなら、最新情報の確認と自分なりの視点をセットで出すのが有効です。`,
+      `${account?.goal || "反応を得ること"} を意識するなら、最新情報の確認と自分なりの視点をセットで出すのが有効です。${naturalReaction}`,
       `${notes || ctaLine}`,
       hashtagLine,
       sourceLine,
     ].join("\n");
   } else if (brief.platform === "x") {
     draft = [
-      `目安: ${profile.lengthGuide || "未設定"}`,
+      compellingHook,
       "",
-      `${brief.keywords || "このテーマ"}、いま発信に乗せるなら早めに見ておく価値があります。`,
+      `${leadSubject}、ちょっと見過ごせないかも。`,
       "",
-      `理由はシンプルで、${factLine}。${summaryLine} と実際の現場感を並べると、読者にとっての解像度が一気に上がるからです。`,
+      `${verdictLine}`,
       "",
-      `${brief.topic || "ざっくりした着想"} の段階でも、トレンド確認と公式ニュース確認を入れるだけで、切り口がかなり安定します。`,
+      `${leadInsight || naturalReaction}`,
       "",
-      `${brief.mustInclude ? `今回は特に ${brief.mustInclude} を入れると伝わりやすいです。` : "大事なのは、情報を並べるだけでなく自分の判断を一言入れること。"}`,
-      `${brief.insights ? `今のところの読みは、${brief.insights}` : ""}`,
-      `${cautionLine}`,
+      `${brief.mustInclude ? `${brief.mustInclude} は入れておきたい。` : "これ、地味に困る人多そう。"} `,
+      `${brief.openQuestions ? `ただ、${brief.openQuestions} はまだ追加確認したい。` : ""}`,
       "",
-      `${account?.goal || "反応獲得"} を狙うなら、最後は一歩踏み込んだ問いやCTAで締めるのがおすすめです。`,
       `${notes || ctaLine}`,
       hashtagLine,
       sourceLine,
-    ].join("\n");
+    ].filter(Boolean).join("\n");
+  } else if (brief.platform === "threads" || brief.platform === "instagram") {
+    draft = [
+      compellingHook,
+      "",
+      `${verdictLine}`,
+      "",
+      `${leadInsight || naturalReaction}`,
+      "",
+      `${brief.mustInclude ? `${brief.mustInclude} まで見ると、かなり空気感が変わります。` : "見た目の話題性だけじゃなく、実際に使えるかどうかの差が大きいです。"}`,
+      `${brief.openQuestions ? `まだ ${brief.openQuestions} は残っているので、断定しすぎないほうがよさそう。` : ""}`,
+      "",
+      `${notes || ctaLine}`,
+      hashtagLine,
+      sourceLine,
+    ].filter(Boolean).join("\n");
   } else {
     draft = [
       `目安: ${profile.lengthGuide || "未設定"} / ハッシュタグ: ${profile.hashtags || "未設定"}`,
       "",
-      `${brief.keywords || "このテーマ"}、${profile.label} で出すならこうまとめると伝わりやすいです。`,
+      compellingHook,
       "",
-      `${factLine}。${summaryLine} を見ながら、${audienceText} に向けて必要なポイントだけを残します。`,
+      `${verdictLine} ${summaryLine} を見ながら、${audienceText} に向けて必要なポイントだけを残します。`,
       "",
-      `${brief.topic || "ざっくりした着想"} をそのまま広げるより、最初に共感できる導入を置いてから要点を短く見せるほうが反応されやすいです。`,
+      `${leadInsight || naturalReaction}`,
       "",
       `${brief.mustInclude ? `今回は ${brief.mustInclude} を入れることで保存価値と具体性を両立できます。` : "情報を詰め込みすぎず、読み手がすぐ理解できる量に絞るのがコツです。"}`,
-      `${brief.insights ? `現時点の読み: ${brief.insights}` : ""}`,
+      `${brief.topic || "ざっくりした着想"} をそのまま広げるより、最初に共感できる導入を置いてから要点を短く見せるほうが反応されやすいです。`,
       `${cautionLine}`,
       "",
       `${account?.goal || "反応獲得"} を狙うなら、最後はコメントしやすい問いかけや軽いCTAで閉じます。`,
@@ -776,6 +821,46 @@ function buildDraft(planText) {
   els.draftPreview.classList.remove("empty-state");
   els.draftStatus.textContent = "生成済み";
   els.planStatus.textContent = "確定";
+}
+
+function firstSentence(value) {
+  return value
+    .split(/[。!?！？\n]/)
+    .map((part) => part.trim())
+    .find(Boolean) || "";
+}
+
+function buildCompellingHook(subject, fact, platform) {
+  if (platform === "x" || platform === "threads" || platform === "instagram") {
+    return `${subject}、ちょっと嫌な方向で答えが見えてきたかもしれない。`;
+  }
+  if (!fact) {
+    return `${subject}、噂で済ませるにはちょっと気になる話でした。`;
+  }
+  return `${subject}、ただの噂かと思ったら、思ったより現実味がありました。`;
+}
+
+function buildVerdictLine(subject, fact) {
+  if (!fact) {
+    return `${subject} について確認を進めたところ、まだ断定しきれない部分が残っています。`;
+  }
+  return `${subject} を追ってみると、いま確認できている事実は「${fact}」でした。`;
+}
+
+function buildNaturalReaction(insight, openQuestion, platform) {
+  if (insight) {
+    return platform === "x"
+      ? `${insight}。かなり見え方が変わる。`
+      : `${insight}。ここがいちばん気になりました。`;
+  }
+
+  if (openQuestion) {
+    return `${openQuestion} まではまだ見切れていないので、ここは少し慎重に見ています。`;
+  }
+
+  return platform === "x"
+    ? "これ、使っている側からすると地味に困るやつ。"
+    : "実際に使っている人ほど、じわっと困る変化かもしれません。";
 }
 
 function normalizeDomain(value) {
