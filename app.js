@@ -202,13 +202,13 @@ function attachEvents() {
   els.copyDraftButton.addEventListener("click", async () => {
     const text = els.draftPreview.textContent.trim();
     if (!text || text.includes("方針が確定したら")) {
-      window.alert("コピーする本文がまだありません。");
+      window.alert("コピーするプロンプトがまだありません。");
       return;
     }
     await navigator.clipboard.writeText(text);
     els.copyDraftButton.textContent = "コピー済み";
     window.setTimeout(() => {
-      els.copyDraftButton.textContent = "本文をコピー";
+      els.copyDraftButton.textContent = "プロンプトをコピー";
     }, 1600);
   });
 
@@ -716,131 +716,87 @@ function buildDraft(planText) {
   const account = accounts.find((item) => item.id === brief.accountId);
   const profile = platformProfiles[brief.platform] || platformProfiles.note;
   const notes = els.draftNotesInput.value.trim();
-  const summaryLine = brief.researchNotes || brief.sourceNotes || "";
   const audienceText = brief.customAudience || account?.audience || "読者";
-  const hashtagLine = buildHashtagLine(brief, profile);
-  const ctaLine = buildCtaLine(account?.goal, profile.ctaStrength, brief.platform);
-  const factLine = brief.facts || "";
-  const cautionLine = brief.openQuestions ? `ただ、${brief.openQuestions} はまだ断定しないほうがよさそうです。` : "";
-  const sourceLine = brief.sourceUrls.length ? `参照元: ${brief.sourceUrls.join(" / ")}` : "";
-  const leadSubject = brief.researchSubject || brief.keywords || brief.topic || "この話題";
-  const leadFact = firstSentence(factLine);
-  const leadInsight = firstSentence(brief.insights || "");
-  const compellingHook = buildCompellingHook(leadSubject, leadFact, brief.platform);
-  const naturalReaction = buildNaturalReaction(leadInsight, brief.openQuestions, brief.platform);
-  const verdictLine = buildVerdictLine(leadSubject, leadFact);
-  const bodyTheme = brief.topic || brief.keywords || leadSubject;
+  const subject = brief.researchSubject || brief.keywords || brief.topic || "この話題";
+  const prompt = buildGenerationPrompt({
+    brief,
+    account,
+    profile,
+    audienceText,
+    subject,
+    planText,
+    notes,
+  });
 
-  let draft = "";
-
-  if (brief.platform === "note" || brief.platform === "wordpress" || brief.platform === "ameblo") {
-    draft = [
-      compellingHook,
-      "",
-      `${verdictLine}`,
-      "",
-      `${summaryLine || `${bodyTheme} を追ってみたら、思っていたより空気が変わっていました。`}`,
-      "",
-      `${brief.insights ? `${brief.insights}。` : naturalReaction}`,
-      `${brief.mustInclude ? `${brief.mustInclude} まで見ると、この話はただの小ネタでは終わらないです。` : "表面だけ見ると小さな変化に見えるけど、使っている側にはじわっと効いてくるタイプだと思います。"} `,
-      `${cautionLine}`,
-      "",
-      `${notes || ctaLine}`,
-      sourceLine,
-    ].filter(Boolean).join("\n");
-  } else if (brief.platform === "x") {
-    draft = [
-      compellingHook,
-      "",
-      `${verdictLine}`,
-      "",
-      `${leadInsight || naturalReaction}`,
-      "",
-      `${brief.mustInclude ? `${brief.mustInclude} は入れておきたい。` : "これ、地味に困る人多そう。"} `,
-      `${brief.openQuestions ? `ただ、${brief.openQuestions} はまだ追加確認したい。` : ""}`,
-      "",
-      `${notes || ctaLine}`,
-      hashtagLine,
-      sourceLine,
-    ].filter(Boolean).join("\n");
-  } else if (brief.platform === "threads" || brief.platform === "instagram") {
-    draft = [
-      compellingHook,
-      "",
-      `${verdictLine}`,
-      "",
-      `${leadInsight || naturalReaction}`,
-      "",
-      `${brief.mustInclude ? `${brief.mustInclude} まで見ると、かなり空気感が変わります。` : "見た目の話題性だけじゃなく、実際に使えるかどうかの差が大きいです。"}`,
-      `${brief.openQuestions ? `まだ ${brief.openQuestions} は残っているので、断定しすぎないほうがよさそう。` : ""}`,
-      "",
-      `${notes || ctaLine}`,
-      hashtagLine,
-      sourceLine,
-    ].filter(Boolean).join("\n");
-  } else {
-    draft = [
-      compellingHook,
-      "",
-      `${verdictLine}`,
-      "",
-      `${summaryLine || `${audienceText} に伝えるなら、この話はかなり温度感があると思いました。`}`,
-      "",
-      `${leadInsight || naturalReaction}`,
-      `${brief.mustInclude ? `${brief.mustInclude} を入れると、ただの話題紹介じゃなくなる。` : "情報を並べるだけじゃなく、どう困るのか、どう判断するのかまで入れたほうが伝わります。"}`,
-      `${cautionLine}`,
-      "",
-      `${account?.goal || "反応獲得"} を狙うなら、最後はコメントしやすい問いかけや軽いCTAで閉じます。`,
-      `${notes || ctaLine}`,
-      hashtagLine,
-      sourceLine,
-    ].join("\n");
-  }
-
-  els.draftPreview.textContent = draft;
+  els.draftPreview.textContent = prompt;
   els.draftPreview.classList.remove("empty-state");
   els.draftStatus.textContent = "生成済み";
   els.planStatus.textContent = "確定";
 }
 
-function firstSentence(value) {
-  return value
-    .split(/[。!?！？\n]/)
-    .map((part) => part.trim())
-    .find(Boolean) || "";
+function buildGenerationPrompt({ brief, account, profile, audienceText, subject, planText, notes }) {
+  const platformLabel = profile.label;
+  const styleGuide = getPlatformOutputGuide(brief.platform);
+  const sourceLine = brief.sourceUrls.length ? brief.sourceUrls.join("\n- ") : "なし";
+
+  return [
+    `あなたは日本語のSNS/ブログ編集者です。${platformLabel}向けに、読者が思わず止まる自然な文章を書いてください。`,
+    "",
+    "絶対条件",
+    "- 入力を言い換えるだけの説明文にしない",
+    "- 最初の1〜2文で『え、そうなの？』と気になる入りにする",
+    "- 事実と推測を分ける",
+    "- 人がそのまま投稿したような温度感にする",
+    "- 不自然なまとめ方、説明調、箇条書き調を避ける",
+    `- 出力先は ${platformLabel}。${styleGuide}`,
+    "",
+    "この投稿で伝えたいこと",
+    `- テーマ: ${subject}`,
+    `- 誰向けか: ${audienceText}`,
+    `- アカウントの役割: ${account?.purpose || "未設定"}`,
+    `- トーン: ${account?.tone || "未設定"}`,
+    `- 狙い: ${account?.goal || "未設定"}`,
+    "",
+    "調査で確認できたこと",
+    `- 事実: ${brief.facts || "未入力"}`,
+    `- 読み/仮説: ${brief.insights || "未入力"}`,
+    `- 未確認ポイント: ${brief.openQuestions || "未入力"}`,
+    `- 調査メモ: ${brief.researchNotes || brief.sourceNotes || "未入力"}`,
+    "",
+    "盛り込みたい内容",
+    `- 背景/ざっくり内容: ${brief.topic || "未入力"}`,
+    `- 入れたい要素: ${brief.mustInclude || "未入力"}`,
+    `- 避けたいこと: ${brief.avoid || "未入力"}`,
+    `- 参考URL:\n- ${sourceLine}`,
+    "",
+    "方針メモ",
+    planText,
+    "",
+    "出力ルール",
+    "- まず完成本文だけを出す",
+    "- 必要ならその下に『別案フックを3つ』だけ付ける",
+    "- 文章は自然な日本語にする",
+    "- 『確認済みの事実をもとに』のような機械っぽい表現は禁止",
+    "- 『誰に何を伝えたいか』が一読で伝わるようにする",
+    "",
+    `追加指示: ${notes || "特になし"}`,
+  ].join("\n");
 }
 
-function buildCompellingHook(subject, fact, platform) {
-  if (platform === "x" || platform === "threads" || platform === "instagram") {
-    return `${subject}、ちょっと嫌な予感が当たってるかもしれない。`;
+function getPlatformOutputGuide(platform) {
+  if (platform === "x") {
+    return "1投稿または短いスレッドで、そのままポストできる長さにする。";
   }
-  if (!fact) {
-    return `${subject}、ただの噂で終わらせにくい話でした。`;
+  if (platform === "threads") {
+    return "会話っぽく自然で、反応したくなる口調にする。";
   }
-  return `${subject}、ただの噂かと思ったら、思ったより現実味がありました。`;
-}
-
-function buildVerdictLine(subject, fact) {
-  if (!fact) {
-    return `${subject} について確認を進めたところ、まだ断定しきれない部分が残っています。`;
+  if (platform === "instagram") {
+    return "キャプションとして読めるように、改行を活かして感情と要点を両立する。";
   }
-  return `${subject} を追ってみたら、いま確認できている事実は「${fact}」でした。`;
-}
-
-function buildNaturalReaction(insight, openQuestion, platform) {
-  if (insight) {
-    return platform === "x"
-      ? `${insight}。これは見え方がかなり変わる。`
-      : `${insight}。ここがいちばん引っかかりました。`;
+  if (platform === "wordpress" || platform === "ameblo" || platform === "note") {
+    return "読みものとして成立する自然な導入と流れをつくる。";
   }
-
-  if (openQuestion) {
-    return `${openQuestion} まではまだ見切れていないので、ここは少し慎重に見ています。`;
-  }
-
-  return platform === "x"
-    ? "これ、使っている側からすると地味に困るやつ。"
-    : "実際に使っている人ほど、じわっと困る変化かもしれません。";
+  return "投稿先に合う自然な長さとトーンにする。";
 }
 
 function normalizeDomain(value) {
@@ -989,7 +945,7 @@ function renderEmptyState() {
   els.planPreview.classList.add("empty-state");
   els.planEditor.value = "";
   els.planStatus.textContent = "未作成";
-  els.draftPreview.textContent = "方針が確定したらここに本文が出ます。";
+  els.draftPreview.textContent = "方針が確定したらここに生成プロンプトが出ます。";
   els.draftPreview.classList.add("empty-state");
   els.draftStatus.textContent = "未作成";
 }

@@ -211,26 +211,26 @@
         <div class="section-heading">
           <div>
             <p class="section-label">Step 3</p>
-            <h2>本文プレビュー</h2>
+            <h2>AI生成プロンプト</h2>
           </div>
           <span id="draftStatus" class="badge">未作成</span>
         </div>
 
         <div class="preview-stack">
           <article class="preview-card">
-            <h3>完成ドラフト</h3>
+            <h3>ChatGPT / Claude / Gemini に渡す内容</h3>
             <div id="draftPreview" class="rich-output empty-state">
-              方針が確定したらここに本文が出ます。
+              方針が確定したらここに生成プロンプトが出ます。
             </div>
           </article>
 
           <label class="field">
-            <span>追記メモ</span>
-            <textarea id="draftNotesInput" rows="4" placeholder="最後に盛り込みたいことがあればメモ"></textarea>
+            <span>AIへの追加指示</span>
+            <textarea id="draftNotesInput" rows="4" placeholder="例: もう少し煽りすぎない / 一人語りっぽく / 投稿1本で完結"></textarea>
           </label>
 
           <div class="action-row">
-            <button id="copyDraftButton" class="button button-primary" type="button">本文をコピー</button>
+            <button id="copyDraftButton" class="button button-primary" type="button">プロンプトをコピー</button>
           </div>
         </div>
       </section>
