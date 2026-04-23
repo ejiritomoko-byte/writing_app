@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Writing Flow Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Writing App Prototype</p>
+        <h1>方針確認を挟んでから書き始める、アカウント別ライティングアプリ</h1>
+        <p class="hero-text">
+          `Note`、`X`、ブログ系、`Instagram`、`Threads` などの出力先を選び、必要な希望だけ入力。
+          情報収集メモをもとに方針を確認し、OKならそのまま本文生成、NGなら手動修正してから作成できます。
+        </p>
+      </div>
+      <div class="hero-card">
+        <p class="hero-card-label">生成フロー</p>
+        <ol>
+          <li>希望入力</li>
+          <li>調査メモ確認</li>
+          <li>方針レビュー</li>
+          <li>本文生成</li>
+        </ol>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel panel-primary">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Step 1</p>
+            <h2>入力フォーム</h2>
+          </div>
+          <button id="openSettingsButton" class="button button-ghost" type="button">設定を開く</button>
+        </div>
+
+        <form id="briefForm" class="brief-form">
+          <div class="field-grid">
+            <label class="field">
+              <span>出力先</span>
+              <select id="platformSelect">
+                <option value="note">Note</option>
+                <option value="x">X</option>
+                <option value="wordpress">WordPress</option>
+                <option value="ameblo">Amebaブログ</option>
+                <option value="instagram">Instagram</option>
+                <option value="threads">Threads</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>アカウント</span>
+              <select id="accountSelect"></select>
+            </label>
+          </div>
+
+          <div id="platformPresetSummary" class="preset-summary"></div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>キーワード</span>
+              <input id="keywordsInput" type="text" placeholder="例: AIライティング, 習慣化, 個人開発">
+            </label>
+
+            <label class="field">
+              <span>ターゲット読者</span>
+              <input id="audienceInput" type="text" placeholder="例: 個人開発者, SNS運用担当者">
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>ざっくりした内容</span>
+              <textarea id="topicInput" rows="5" placeholder="入れたい話題や方向性だけでOK"></textarea>
+            </label>
+
+            <label class="field">
+              <span>入れたい要素</span>
+              <textarea id="mustIncludeInput" rows="5" placeholder="事例、主張、CTAなど"></textarea>
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>避けたいこと</span>
+              <textarea id="avoidInput" rows="4" placeholder="強すぎる表現、煽り、専門用語多めなど"></textarea>
+            </label>
+
+            <label class="field">
+              <span>参考メモ</span>
+              <textarea id="sourcesInput" rows="4" placeholder="見つけたニュース、URL、社内メモなど"></textarea>
+            </label>
+          </div>
+
+          <div class="research-box">
+            <div class="research-header">
+              <div>
+                <p class="section-label">Research Checklist</p>
+                <h3>確認対象ソース</h3>
+              </div>
+              <p class="research-note">自動取得の代わりに、確認済みかどうかと要点メモを残せます。</p>
+            </div>
+            <div class="check-grid">
+              <label class="check-item">
+                <input id="trendCheck" type="checkbox" checked>
+                <span>Googleトレンドを確認する</span>
+              </label>
+              <label class="check-item">
+                <input id="officialNewsCheck" type="checkbox" checked>
+                <span>公式ニュースを確認する</span>
+              </label>
+              <label class="check-item">
+                <input id="competitorCheck" type="checkbox">
+                <span>競合や周辺事例を確認する</span>
+              </label>
+            </div>
+            <label class="field">
+              <span>調査メモ</span>
+              <textarea id="researchNotesInput" rows="5" placeholder="トレンドの伸び、公式発表の要点、拾った事実など"></textarea>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="buildPlanButton" class="button button-primary" type="submit">方針をつくる</button>
+            <button id="resetButton" class="button button-ghost" type="button">入力をリセット</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Step 2</p>
+            <h2>方針レビュー</h2>
+          </div>
+          <span id="planStatus" class="badge">未作成</span>
+        </div>
+
+        <div class="preview-stack">
+          <article class="preview-card">
+            <h3>調査サマリー</h3>
+            <div id="researchSummary" class="rich-output empty-state">
+              入力内容からここに調査整理が表示されます。
+            </div>
+          </article>
+
+          <article class="preview-card">
+            <h3>生成方針</h3>
+            <div id="planPreview" class="rich-output empty-state">
+              方針をつくると、構成・トーン・見出し案・投稿の狙いを確認できます。
+            </div>
+          </article>
+
+          <label class="field">
+            <span>方針の手動修正</span>
+            <textarea id="planEditor" rows="10" placeholder="NGならここを直してから本文生成"></textarea>
+          </label>
+
+          <div class="action-row">
+            <button id="approvePlanButton" class="button button-primary" type="button">この方針で本文作成</button>
+            <button id="rebuildPlanButton" class="button button-secondary" type="button">入力から方針を再生成</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Step 3</p>
+            <h2>本文プレビュー</h2>
+          </div>
+          <span id="draftStatus" class="badge">未作成</span>
+        </div>
+
+        <div class="preview-stack">
+          <article class="preview-card">
+            <h3>完成ドラフト</h3>
+            <div id="draftPreview" class="rich-output empty-state">
+              方針が確定したらここに本文が出ます。
+            </div>
+          </article>
+
+          <label class="field">
+            <span>追記メモ</span>
+            <textarea id="draftNotesInput" rows="4" placeholder="最後に盛り込みたいことがあればメモ"></textarea>
+          </label>
+
+          <div class="action-row">
+            <button id="copyDraftButton" class="button button-primary" type="button">本文をコピー</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settingsDialog" class="settings-dialog">
+    <form method="dialog" class="settings-shell">
+      <div class="section-heading">
+        <div>
+          <p class="section-label">Settings</p>
+          <h2>アカウント設定</h2>
+        </div>
+        <button class="button button-ghost" type="submit">閉じる</button>
+      </div>
+
+      <div class="settings-layout">
+        <div class="settings-list">
+          <div id="accountCards" class="account-cards"></div>
+        </div>
+
+        <div class="settings-editor">
+          <label class="field">
+            <span>表示名</span>
+            <input id="accountNameInput" type="text" placeholder="例: 個人開発アカウント">
+          </label>
+          <label class="field">
+            <span>用途</span>
+            <input id="accountPurposeInput" type="text" placeholder="例: Noteでの知見発信">
+          </label>
+          <label class="field">
+            <span>トーン</span>
+            <input id="accountToneInput" type="text" placeholder="例: 誠実で親しみやすい">
+          </label>
+          <label class="field">
+            <span>主な読者</span>
+            <input id="accountAudienceInput" type="text" placeholder="例: 個人開発者、フリーランス">
+          </label>
+          <label class="field">
+            <span>CTA / 目的</span>
+            <input id="accountGoalInput" type="text" placeholder="例: フォロー獲得、相談導線">
+          </label>
+
+          <div class="action-row">
+            <button id="saveAccountButton" class="button button-primary" type="button">保存</button>
+            <button id="newAccountButton" class="button button-secondary" type="button">新規作成</button>
+            <button id="deleteAccountButton" class="button button-ghost" type="button">削除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="platform-settings">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Platform Presets</p>
+            <h3>媒体ごとの出力設定</h3>
+          </div>
+        </div>
+
+        <div class="settings-layout">
+          <div class="settings-list">
+            <div id="platformCards" class="account-cards"></div>
+          </div>
+
+          <div class="settings-editor">
+            <label class="field">
+              <span>文字数目安</span>
+              <input id="platformLengthInput" type="text" placeholder="例: 800〜1,500字 / 6〜8投稿 / 220文字前後">
+            </label>
+            <label class="field">
+              <span>ハッシュタグ方針</span>
+              <input id="platformHashtagsInput" type="text" placeholder="例: 2〜4個 / なし / 文末に3個ほど">
+            </label>
+            <label class="field">
+              <span>見出し数の目安</span>
+              <input id="platformHeadingCountInput" type="text" placeholder="例: 3〜4個 / なし / 1スレッド4展開">
+            </label>
+            <label class="field">
+              <span>CTAの強さ</span>
+              <select id="platformCtaStrengthInput">
+                <option value="soft">やさしめ</option>
+                <option value="medium">標準</option>
+                <option value="strong">強め</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>運用メモ</span>
+              <textarea id="platformNotesInput" rows="4" placeholder="例: 冒頭で結論を出す / 保存向けに箇条書き重視"></textarea>
+            </label>
+
+            <div class="action-row">
+              <button id="savePlatformButton" class="button button-primary" type="button">媒体設定を保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
