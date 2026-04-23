@@ -105,7 +105,7 @@
                 <p class="section-label">Research Checklist</p>
                 <h3>確認対象ソース</h3>
               </div>
-              <p class="research-note">自動取得の代わりに、確認済みかどうかと要点メモを残せます。</p>
+              <p class="research-note">無料で使える検索導線を自動生成して、事実確認の材料を集めやすくします。</p>
             </div>
             <div class="check-grid">
               <label class="check-item">
@@ -121,9 +121,54 @@
                 <span>競合や周辺事例を確認する</span>
               </label>
             </div>
+            <div class="field-grid">
+              <label class="field">
+                <span>調査テーマ</span>
+                <input id="researchSubjectInput" type="text" placeholder="例: Claude Code, Notion AI, AIライティング">
+              </label>
+              <label class="field">
+                <span>公式ドメイン</span>
+                <input id="officialDomainInput" type="text" placeholder="例: anthropic.com, openai.com">
+              </label>
+            </div>
+            <label class="field">
+              <span>比較したい競合・関連サービス</span>
+              <input id="competitorsInput" type="text" placeholder="例: ChatGPT, Gemini, GitHub Copilot">
+            </label>
+            <div class="action-row">
+              <button id="buildResearchLinksButton" class="button button-secondary" type="button">調査リンクをつくる</button>
+              <button id="saveResearchLogButton" class="button button-ghost" type="button">調査ログを保存</button>
+            </div>
+            <div id="researchLinks" class="research-links empty-state">
+              テーマとドメインを入れると、Google Trends、Google News、公式サイト検索、競合比較用のリンクがここに出ます。
+            </div>
+            <div id="savedResearchSummary" class="saved-summary empty-state">
+              保存した調査ログはここに表示されます。
+            </div>
             <label class="field">
               <span>調査メモ</span>
               <textarea id="researchNotesInput" rows="5" placeholder="トレンドの伸び、公式発表の要点、拾った事実など"></textarea>
+            </label>
+            <label class="field">
+              <span>引用元URL</span>
+              <textarea id="sourceUrlsInput" rows="4" placeholder="1行に1つずつ URL を貼る"></textarea>
+            </label>
+            <div id="sourceUrlList" class="research-links empty-state">
+              追加した引用元URLがここに並びます。
+            </div>
+            <div class="field-grid">
+              <label class="field">
+                <span>確認できた事実</span>
+                <textarea id="factsInput" rows="5" placeholder="例: 公式ヘルプに Pro / Max で Claude Code 利用可とある"></textarea>
+              </label>
+              <label class="field">
+                <span>仮説・読み</span>
+                <textarea id="insightsInput" rows="5" placeholder="例: 使えなくなったのではなく、利用上限に当たった可能性が高い"></textarea>
+              </label>
+            </div>
+            <label class="field">
+              <span>未確認ポイント</span>
+              <textarea id="openQuestionsInput" rows="4" placeholder="例: 一部の地域やアプリ経由課金で条件が違うかは追加確認が必要"></textarea>
             </label>
           </div>
 

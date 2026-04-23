@@ -208,6 +208,56 @@ textarea:focus {
   line-height: 1.8;
 }
 
+.saved-summary {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--line);
+  background: rgba(255, 255, 255, 0.48);
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.research-links {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.research-link-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.research-link-card a {
+  color: var(--accent-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.research-link-card a:hover {
+  text-decoration: underline;
+}
+
+.research-link-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.research-link-card .mini-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .check-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -2,6 +2,7 @@ const storageKeys = {
   accounts: "writing-app-accounts",
   selectedAccountId: "writing-app-selected-account-id",
   platformSettings: "writing-app-platform-settings",
+  savedResearchLog: "writing-app-saved-research-log",
 };
 
 const basePlatformProfiles = {
@@ -105,8 +106,20 @@ const els = {
   trendCheck: document.getElementById("trendCheck"),
   officialNewsCheck: document.getElementById("officialNewsCheck"),
   competitorCheck: document.getElementById("competitorCheck"),
+  researchSubjectInput: document.getElementById("researchSubjectInput"),
+  officialDomainInput: document.getElementById("officialDomainInput"),
+  competitorsInput: document.getElementById("competitorsInput"),
+  buildResearchLinksButton: document.getElementById("buildResearchLinksButton"),
+  saveResearchLogButton: document.getElementById("saveResearchLogButton"),
+  researchLinks: document.getElementById("researchLinks"),
+  savedResearchSummary: document.getElementById("savedResearchSummary"),
   platformPresetSummary: document.getElementById("platformPresetSummary"),
   researchNotesInput: document.getElementById("researchNotesInput"),
+  sourceUrlsInput: document.getElementById("sourceUrlsInput"),
+  sourceUrlList: document.getElementById("sourceUrlList"),
+  factsInput: document.getElementById("factsInput"),
+  insightsInput: document.getElementById("insightsInput"),
+  openQuestionsInput: document.getElementById("openQuestionsInput"),
   researchSummary: document.getElementById("researchSummary"),
   planPreview: document.getElementById("planPreview"),
   planEditor: document.getElementById("planEditor"),
@@ -143,6 +156,7 @@ let accounts = loadAccounts();
 let selectedAccountId = loadSelectedAccountId();
 let editingAccountId = selectedAccountId || accounts[0]?.id || null;
 let editingPlatformKey = "note";
+let savedResearchLog = loadSavedResearchLog();
 
 hydrate();
 
@@ -153,6 +167,9 @@ function hydrate() {
   fillAccountEditor(editingAccountId);
   fillPlatformEditor(editingPlatformKey);
   renderPlatformPresetSummary();
+  renderResearchLinks();
+  hydrateSavedResearchLog();
+  renderSourceUrlList();
   attachEvents();
 }
 
@@ -205,6 +222,16 @@ function attachEvents() {
   els.deleteAccountButton.addEventListener("click", deleteAccount);
   els.savePlatformButton.addEventListener("click", savePlatformProfile);
   els.platformSelect.addEventListener("change", renderPlatformPresetSummary);
+  els.buildResearchLinksButton.addEventListener("click", renderResearchLinks);
+  els.saveResearchLogButton.addEventListener("click", saveResearchLog);
+  els.keywordsInput.addEventListener("input", renderResearchLinks);
+  els.researchSubjectInput.addEventListener("input", renderResearchLinks);
+  els.officialDomainInput.addEventListener("input", renderResearchLinks);
+  els.competitorsInput.addEventListener("input", renderResearchLinks);
+  els.trendCheck.addEventListener("change", renderResearchLinks);
+  els.officialNewsCheck.addEventListener("change", renderResearchLinks);
+  els.competitorCheck.addEventListener("change", renderResearchLinks);
+  els.sourceUrlsInput.addEventListener("input", renderSourceUrlList);
 }
 
 function loadPlatformProfiles() {
@@ -241,6 +268,19 @@ function loadAccounts() {
   }
 }
 
+function loadSavedResearchLog() {
+  const raw = localStorage.getItem(storageKeys.savedResearchLog);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function loadSelectedAccountId() {
   return localStorage.getItem(storageKeys.selectedAccountId) || accounts[0]?.id || null;
 }
@@ -252,6 +292,10 @@ function persistAccounts() {
 
 function persistPlatformProfiles() {
   localStorage.setItem(storageKeys.platformSettings, JSON.stringify(platformProfiles));
+}
+
+function persistSavedResearchLog() {
+  localStorage.setItem(storageKeys.savedResearchLog, JSON.stringify(savedResearchLog));
 }
 
 function renderAccountSelect() {
@@ -421,6 +465,105 @@ function renderPlatformPresetSummary() {
   ].join("\n");
 }
 
+function renderResearchLinks() {
+  const brief = collectBrief();
+  const subject = brief.researchSubject || brief.keywords || brief.topic;
+  const links = buildResearchLinks(brief, subject);
+
+  if (!links.length) {
+    els.researchLinks.textContent = "テーマとドメインを入れると、Google Trends、Google News、公式サイト検索、競合比較用のリンクがここに出ます。";
+    els.researchLinks.classList.add("empty-state");
+    return;
+  }
+
+  els.researchLinks.classList.remove("empty-state");
+  els.researchLinks.innerHTML = links.map((link) => `
+    <article class="research-link-card">
+      <span class="mini-label">${escapeHtml(link.group)}</span>
+      <a href="${escapeAttribute(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a>
+      <p>${escapeHtml(link.description)}</p>
+    </article>
+  `).join("");
+}
+
+function buildResearchLinks(brief, subject) {
+  if (!subject) {
+    return [];
+  }
+
+  const normalizedDomain = normalizeDomain(brief.officialDomain);
+  const links = [];
+
+  if (brief.researchTargets.includes("Googleトレンド")) {
+    links.push({
+      group: "Official Research",
+      label: "Google Trends で調べる",
+      description: `${subject} の検索需要や関連トピックを確認する`,
+      url: `https://trends.google.com/trends/explore?date=today%2012-m&q=${encodeURIComponent(subject)}`,
+    });
+  }
+
+  if (brief.researchTargets.includes("公式ニュース")) {
+    links.push({
+      group: "Official Research",
+      label: "Google News で検索する",
+      description: `${subject} の最新ニュースや報道の流れを確認する`,
+      url: `https://news.google.com/search?q=${encodeURIComponent(subject)}`,
+    });
+  }
+
+  if (normalizedDomain) {
+    links.push({
+      group: "Official Research",
+      label: "公式サイト内を検索する",
+      description: `${normalizedDomain} 内で ${subject} に関する公式情報を探す`,
+      url: `https://www.google.com/search?q=${encodeURIComponent(`site:${normalizedDomain} ${subject}`)}`,
+    });
+    links.push({
+      group: "Official Research",
+      label: "公式ニュースルームを探す",
+      description: "プレスリリース、発表、アナウンスを確認する",
+      url: `https://www.google.com/search?q=${encodeURIComponent(`site:${normalizedDomain} (${subject}) (news OR newsroom OR press release OR announcement OR blog)`)}`,
+    });
+  }
+
+  if (brief.researchTargets.includes("周辺事例")) {
+    const competitors = brief.competitors
+      .split(/[、,]/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    competitors.forEach((competitor) => {
+      links.push({
+        group: "Competitive Research",
+        label: `${competitor} と比較する`,
+        description: `${subject} との違いや比較文脈を把握する`,
+        url: `https://www.google.com/search?q=${encodeURIComponent(`${subject} ${competitor} comparison`)}`,
+      });
+    });
+  }
+
+  links.push({
+    group: "General Verification",
+    label: "一般検索で事実確認する",
+    description: "噂やSNS投稿だけでなく、一次情報や複数ソースで裏取りする",
+    url: `https://www.google.com/search?q=${encodeURIComponent(subject)}`,
+  });
+
+  return links.sort((left, right) => rankResearchGroup(left.group) - rankResearchGroup(right.group));
+}
+
+function rankResearchGroup(group) {
+  if (group === "Official Research") {
+    return 0;
+  }
+  if (group === "Competitive Research") {
+    return 1;
+  }
+  return 2;
+}
+
 function buildPlanFromInputs() {
   const brief = collectBrief();
   const account = accounts.find((item) => item.id === brief.accountId);
@@ -431,9 +574,14 @@ function buildPlanFromInputs() {
     `確認対象: ${brief.researchTargets.join(" / ") || "指定なし"}`,
     `出力先: ${profile.label}`,
     `キーワード: ${brief.keywords || "未入力"}`,
+    `調査テーマ: ${brief.researchSubject || "未入力"}`,
+    `公式ドメイン: ${brief.officialDomain || "未入力"}`,
     `ターゲット読者: ${audienceText}`,
     `文字数目安: ${profile.lengthGuide || "未設定"}`,
     `調査メモ: ${brief.researchNotes || "未入力"}`,
+    `確認できた事実: ${brief.facts || "未入力"}`,
+    `仮説・読み: ${brief.insights || "未入力"}`,
+    `未確認ポイント: ${brief.openQuestions || "未入力"}`,
     `参考メモ: ${brief.sourceNotes || "未入力"}`,
   ].join("\n");
 
@@ -455,6 +603,9 @@ function buildPlanFromInputs() {
     `${brief.topic ? `主題は「${brief.topic}」を中心に据える。` : "主題は入力キーワードを軸に具体例を加えて立ち上げる。"}`,
     `${brief.mustInclude ? `必須要素として ${brief.mustInclude} を盛り込む。` : "必要に応じて事例・観察・学びの順で厚みをつくる。"}`,
     `${brief.avoid ? `避けたいこと: ${brief.avoid}` : "煽り表現や断定が強すぎる表現は避ける。"}`,
+    `${brief.facts ? `確認済みの事実: ${brief.facts}` : "確認済みの事実: 明記されていないので、推測は事実として書かない。"}`,
+    `${brief.insights ? `事実からの読み: ${brief.insights}` : "事実からの読み: 確認できた事実から解釈を分けて書く。"}`,
+    `${brief.openQuestions ? `未確認ポイント: ${brief.openQuestions}` : "未確認ポイント: 不確かな点は断定せず、注意書きを残す。"}`,
     `読者への寄せ方: ${audienceText} が「自分向けの内容だ」と感じる語彙と具体例を優先する。`,
     "",
     "構成案",
@@ -488,13 +639,27 @@ function collectBrief() {
     mustInclude: els.mustIncludeInput.value.trim(),
     avoid: els.avoidInput.value.trim(),
     sourceNotes: els.sourcesInput.value.trim(),
+    sourceUrls: parseSourceUrls(els.sourceUrlsInput.value),
     researchNotes: els.researchNotesInput.value.trim(),
+    researchSubject: els.researchSubjectInput.value.trim(),
+    officialDomain: els.officialDomainInput.value.trim(),
+    competitors: els.competitorsInput.value.trim(),
+    facts: els.factsInput.value.trim(),
+    insights: els.insightsInput.value.trim(),
+    openQuestions: els.openQuestionsInput.value.trim(),
     researchTargets: [
       els.trendCheck.checked ? "Googleトレンド" : "",
       els.officialNewsCheck.checked ? "公式ニュース" : "",
       els.competitorCheck.checked ? "周辺事例" : "",
     ].filter(Boolean),
   };
+}
+
+function parseSourceUrls(value) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function buildHooks(brief, account, profile) {
@@ -531,6 +696,9 @@ function buildDraft(planText) {
   const audienceText = brief.customAudience || account?.audience || "読者";
   const hashtagLine = buildHashtagLine(brief, profile);
   const ctaLine = buildCtaLine(account?.goal, profile.ctaStrength, brief.platform);
+  const factLine = brief.facts || "確認済みの事実をもとに";
+  const cautionLine = brief.openQuestions ? `未確認の点として ${brief.openQuestions} は断定せず扱います。` : "";
+  const sourceLine = brief.sourceUrls.length ? `参照元: ${brief.sourceUrls.join(" / ")}` : "";
 
   let draft = "";
 
@@ -549,17 +717,20 @@ function buildDraft(planText) {
       `${summaryLine}、今日は ${audienceText} に向けて、いま押さえておきたいポイントを整理します。`,
       "",
       "## まず見えてきたこと",
-      `${brief.topic || "話題の輪郭はまだ粗くても"}、Googleトレンドや公式ニュースを確認すると、注目されている理由と実際の使われ方の差が見えてきます。`,
+      `${factLine}。${brief.topic || "話題の輪郭はまだ粗くても"}、Googleトレンドや公式ニュースを確認すると、注目されている理由と実際の使われ方の差が見えてきます。`,
       "",
       "## 発信に落とし込むときの考え方",
       `${planText.split("\n").slice(0, 6).join(" ")}`,
       "",
       `${brief.mustInclude ? `特に今回は ${brief.mustInclude} を軸にすると、読者が自分ごと化しやすくなります。` : "単なる情報整理で終わらせず、読者が次にどう動けるかまで落とし込むのがポイントです。"}`,
+      `${brief.insights ? `現時点の読みとしては、${brief.insights}` : ""}`,
+      `${cautionLine}`,
       "",
       "## まとめ",
       `${account?.goal || "反応を得ること"} を意識するなら、最新情報の確認と自分なりの視点をセットで出すのが有効です。`,
       `${notes || ctaLine}`,
       hashtagLine,
+      sourceLine,
     ].join("\n");
   } else if (brief.platform === "x") {
     draft = [
@@ -567,15 +738,18 @@ function buildDraft(planText) {
       "",
       `${brief.keywords || "このテーマ"}、いま発信に乗せるなら早めに見ておく価値があります。`,
       "",
-      `理由はシンプルで、${summaryLine} と実際の現場感を並べると、読者にとっての解像度が一気に上がるからです。`,
+      `理由はシンプルで、${factLine}。${summaryLine} と実際の現場感を並べると、読者にとっての解像度が一気に上がるからです。`,
       "",
       `${brief.topic || "ざっくりした着想"} の段階でも、トレンド確認と公式ニュース確認を入れるだけで、切り口がかなり安定します。`,
       "",
       `${brief.mustInclude ? `今回は特に ${brief.mustInclude} を入れると伝わりやすいです。` : "大事なのは、情報を並べるだけでなく自分の判断を一言入れること。"}`,
+      `${brief.insights ? `今のところの読みは、${brief.insights}` : ""}`,
+      `${cautionLine}`,
       "",
       `${account?.goal || "反応獲得"} を狙うなら、最後は一歩踏み込んだ問いやCTAで締めるのがおすすめです。`,
       `${notes || ctaLine}`,
       hashtagLine,
+      sourceLine,
     ].join("\n");
   } else {
     draft = [
@@ -583,15 +757,18 @@ function buildDraft(planText) {
       "",
       `${brief.keywords || "このテーマ"}、${profile.label} で出すならこうまとめると伝わりやすいです。`,
       "",
-      `${summaryLine} を見ながら、${audienceText} に向けて必要なポイントだけを残します。`,
+      `${factLine}。${summaryLine} を見ながら、${audienceText} に向けて必要なポイントだけを残します。`,
       "",
       `${brief.topic || "ざっくりした着想"} をそのまま広げるより、最初に共感できる導入を置いてから要点を短く見せるほうが反応されやすいです。`,
       "",
       `${brief.mustInclude ? `今回は ${brief.mustInclude} を入れることで保存価値と具体性を両立できます。` : "情報を詰め込みすぎず、読み手がすぐ理解できる量に絞るのがコツです。"}`,
+      `${brief.insights ? `現時点の読み: ${brief.insights}` : ""}`,
+      `${cautionLine}`,
       "",
       `${account?.goal || "反応獲得"} を狙うなら、最後はコメントしやすい問いかけや軽いCTAで閉じます。`,
       `${notes || ctaLine}`,
       hashtagLine,
+      sourceLine,
     ].join("\n");
   }
 
@@ -599,6 +776,21 @@ function buildDraft(planText) {
   els.draftPreview.classList.remove("empty-state");
   els.draftStatus.textContent = "生成済み";
   els.planStatus.textContent = "確定";
+}
+
+function normalizeDomain(value) {
+  return value
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "");
+}
+
+function escapeAttribute(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function describeCtaStrength(value) {
@@ -642,6 +834,87 @@ function buildHashtagLine(brief, profile) {
   }
 
   return `${tokens.join(" ")}\nハッシュタグ目安: ${profile.hashtags}`;
+}
+
+function renderSourceUrlList() {
+  const urls = parseSourceUrls(els.sourceUrlsInput.value);
+  if (!urls.length) {
+    els.sourceUrlList.textContent = "追加した引用元URLがここに並びます。";
+    els.sourceUrlList.classList.add("empty-state");
+    return;
+  }
+
+  els.sourceUrlList.classList.remove("empty-state");
+  els.sourceUrlList.innerHTML = urls.map((url, index) => `
+    <article class="research-link-card">
+      <span class="mini-label">Source ${index + 1}</span>
+      <a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>
+      <p>本文や方針に使う引用元URL</p>
+    </article>
+  `).join("");
+}
+
+function saveResearchLog() {
+  const brief = collectBrief();
+  savedResearchLog = {
+    savedAt: new Date().toLocaleString("ja-JP"),
+    researchSubject: brief.researchSubject || brief.keywords || "未設定",
+    officialDomain: brief.officialDomain || "",
+    facts: brief.facts || "",
+    insights: brief.insights || "",
+    openQuestions: brief.openQuestions || "",
+    sourceUrls: brief.sourceUrls,
+  };
+
+  persistSavedResearchLog();
+  renderSavedResearchSummary();
+}
+
+function hydrateSavedResearchLog() {
+  if (!savedResearchLog) {
+    renderSavedResearchSummary();
+    return;
+  }
+
+  if (!els.researchSubjectInput.value) {
+    els.researchSubjectInput.value = savedResearchLog.researchSubject || "";
+  }
+  if (!els.officialDomainInput.value) {
+    els.officialDomainInput.value = savedResearchLog.officialDomain || "";
+  }
+  if (!els.factsInput.value) {
+    els.factsInput.value = savedResearchLog.facts || "";
+  }
+  if (!els.insightsInput.value) {
+    els.insightsInput.value = savedResearchLog.insights || "";
+  }
+  if (!els.openQuestionsInput.value) {
+    els.openQuestionsInput.value = savedResearchLog.openQuestions || "";
+  }
+  if (!els.sourceUrlsInput.value && savedResearchLog.sourceUrls?.length) {
+    els.sourceUrlsInput.value = savedResearchLog.sourceUrls.join("\n");
+  }
+
+  renderSavedResearchSummary();
+}
+
+function renderSavedResearchSummary() {
+  if (!savedResearchLog) {
+    els.savedResearchSummary.textContent = "保存した調査ログはここに表示されます。";
+    els.savedResearchSummary.classList.add("empty-state");
+    return;
+  }
+
+  els.savedResearchSummary.classList.remove("empty-state");
+  els.savedResearchSummary.textContent = [
+    `最終保存: ${savedResearchLog.savedAt}`,
+    `調査テーマ: ${savedResearchLog.researchSubject || "未設定"}`,
+    `公式ドメイン: ${savedResearchLog.officialDomain || "未設定"}`,
+    `確認できた事実: ${savedResearchLog.facts || "未設定"}`,
+    `仮説・読み: ${savedResearchLog.insights || "未設定"}`,
+    `未確認ポイント: ${savedResearchLog.openQuestions || "未設定"}`,
+    `引用元URL数: ${savedResearchLog.sourceUrls?.length || 0}`,
+  ].join("\n");
 }
 
 function renderEmptyState() {
