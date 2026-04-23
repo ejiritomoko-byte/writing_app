@@ -716,12 +716,12 @@ function buildDraft(planText) {
   const account = accounts.find((item) => item.id === brief.accountId);
   const profile = platformProfiles[brief.platform] || platformProfiles.note;
   const notes = els.draftNotesInput.value.trim();
-  const summaryLine = brief.researchNotes || brief.sourceNotes || "調査メモを踏まえて";
+  const summaryLine = brief.researchNotes || brief.sourceNotes || "";
   const audienceText = brief.customAudience || account?.audience || "読者";
   const hashtagLine = buildHashtagLine(brief, profile);
   const ctaLine = buildCtaLine(account?.goal, profile.ctaStrength, brief.platform);
-  const factLine = brief.facts || "確認済みの事実をもとに";
-  const cautionLine = brief.openQuestions ? `未確認の点として ${brief.openQuestions} は断定せず扱います。` : "";
+  const factLine = brief.facts || "";
+  const cautionLine = brief.openQuestions ? `ただ、${brief.openQuestions} はまだ断定しないほうがよさそうです。` : "";
   const sourceLine = brief.sourceUrls.length ? `参照元: ${brief.sourceUrls.join(" / ")}` : "";
   const leadSubject = brief.researchSubject || brief.keywords || brief.topic || "この話題";
   const leadFact = firstSentence(factLine);
@@ -729,46 +729,28 @@ function buildDraft(planText) {
   const compellingHook = buildCompellingHook(leadSubject, leadFact, brief.platform);
   const naturalReaction = buildNaturalReaction(leadInsight, brief.openQuestions, brief.platform);
   const verdictLine = buildVerdictLine(leadSubject, leadFact);
+  const bodyTheme = brief.topic || brief.keywords || leadSubject;
 
   let draft = "";
 
   if (brief.platform === "note" || brief.platform === "wordpress" || brief.platform === "ameblo") {
-    const titlePrefix = brief.platform === "wordpress"
-      ? `${brief.keywords || "テーマ"}について、${audienceText}向けに整理しました`
-      : brief.platform === "ameblo"
-        ? `${brief.keywords || "今日のテーマ"}について、いま感じていること`
-        : `${brief.keywords || "テーマ整理"}から見えた、いま発信で押さえたいこと`;
-
     draft = [
-      `# ${titlePrefix}`,
-      "",
       compellingHook,
       "",
-      `目安: ${profile.lengthGuide || "未設定"} / 見出し: ${profile.headingCount || "未設定"}`,
+      `${verdictLine}`,
       "",
-      `${summaryLine}。今日は ${audienceText} に向けて、いま押さえておきたいポイントを整理します。`,
+      `${summaryLine || `${bodyTheme} を追ってみたら、思っていたより空気が変わっていました。`}`,
       "",
-      "## まず見えてきたこと",
-      `${verdictLine}${brief.topic ? ` ${brief.topic} という見方で追うと、` : " "}Googleトレンドや公式ニュースを確認すると、注目されている理由と実際の使われ方の差が見えてきます。`,
-      "",
-      "## 発信に落とし込むときの考え方",
-      `${brief.insights ? `今回いちばん大きいのは、${brief.insights}` : naturalReaction}`,
-      "",
-      `${brief.mustInclude ? `特に今回は ${brief.mustInclude} を軸にすると、読者が自分ごと化しやすくなります。` : "単なる情報整理で終わらせず、読者が次にどう動けるかまで落とし込むのがポイントです。"}`,
-      `${planText.split("\n").slice(0, 4).join(" ")}`,
+      `${brief.insights ? `${brief.insights}。` : naturalReaction}`,
+      `${brief.mustInclude ? `${brief.mustInclude} まで見ると、この話はただの小ネタでは終わらないです。` : "表面だけ見ると小さな変化に見えるけど、使っている側にはじわっと効いてくるタイプだと思います。"} `,
       `${cautionLine}`,
       "",
-      "## まとめ",
-      `${account?.goal || "反応を得ること"} を意識するなら、最新情報の確認と自分なりの視点をセットで出すのが有効です。${naturalReaction}`,
       `${notes || ctaLine}`,
-      hashtagLine,
       sourceLine,
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   } else if (brief.platform === "x") {
     draft = [
       compellingHook,
-      "",
-      `${leadSubject}、ちょっと見過ごせないかも。`,
       "",
       `${verdictLine}`,
       "",
@@ -798,16 +780,14 @@ function buildDraft(planText) {
     ].filter(Boolean).join("\n");
   } else {
     draft = [
-      `目安: ${profile.lengthGuide || "未設定"} / ハッシュタグ: ${profile.hashtags || "未設定"}`,
-      "",
       compellingHook,
       "",
-      `${verdictLine} ${summaryLine} を見ながら、${audienceText} に向けて必要なポイントだけを残します。`,
+      `${verdictLine}`,
+      "",
+      `${summaryLine || `${audienceText} に伝えるなら、この話はかなり温度感があると思いました。`}`,
       "",
       `${leadInsight || naturalReaction}`,
-      "",
-      `${brief.mustInclude ? `今回は ${brief.mustInclude} を入れることで保存価値と具体性を両立できます。` : "情報を詰め込みすぎず、読み手がすぐ理解できる量に絞るのがコツです。"}`,
-      `${brief.topic || "ざっくりした着想"} をそのまま広げるより、最初に共感できる導入を置いてから要点を短く見せるほうが反応されやすいです。`,
+      `${brief.mustInclude ? `${brief.mustInclude} を入れると、ただの話題紹介じゃなくなる。` : "情報を並べるだけじゃなく、どう困るのか、どう判断するのかまで入れたほうが伝わります。"}`,
       `${cautionLine}`,
       "",
       `${account?.goal || "反応獲得"} を狙うなら、最後はコメントしやすい問いかけや軽いCTAで閉じます。`,
@@ -832,10 +812,10 @@ function firstSentence(value) {
 
 function buildCompellingHook(subject, fact, platform) {
   if (platform === "x" || platform === "threads" || platform === "instagram") {
-    return `${subject}、ちょっと嫌な方向で答えが見えてきたかもしれない。`;
+    return `${subject}、ちょっと嫌な予感が当たってるかもしれない。`;
   }
   if (!fact) {
-    return `${subject}、噂で済ませるにはちょっと気になる話でした。`;
+    return `${subject}、ただの噂で終わらせにくい話でした。`;
   }
   return `${subject}、ただの噂かと思ったら、思ったより現実味がありました。`;
 }
@@ -844,14 +824,14 @@ function buildVerdictLine(subject, fact) {
   if (!fact) {
     return `${subject} について確認を進めたところ、まだ断定しきれない部分が残っています。`;
   }
-  return `${subject} を追ってみると、いま確認できている事実は「${fact}」でした。`;
+  return `${subject} を追ってみたら、いま確認できている事実は「${fact}」でした。`;
 }
 
 function buildNaturalReaction(insight, openQuestion, platform) {
   if (insight) {
     return platform === "x"
-      ? `${insight}。かなり見え方が変わる。`
-      : `${insight}。ここがいちばん気になりました。`;
+      ? `${insight}。これは見え方がかなり変わる。`
+      : `${insight}。ここがいちばん引っかかりました。`;
   }
 
   if (openQuestion) {
