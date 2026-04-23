@@ -118,6 +118,9 @@ const els = {
   researchNotesInput: document.getElementById("researchNotesInput"),
   sourceUrlsInput: document.getElementById("sourceUrlsInput"),
   sourceUrlList: document.getElementById("sourceUrlList"),
+  sourceTextsInput: document.getElementById("sourceTextsInput"),
+  factCheckTargetsInput: document.getElementById("factCheckTargetsInput"),
+  factCheckLinkList: document.getElementById("factCheckLinkList"),
   factsInput: document.getElementById("factsInput"),
   insightsInput: document.getElementById("insightsInput"),
   openQuestionsInput: document.getElementById("openQuestionsInput"),
@@ -171,6 +174,7 @@ function hydrate() {
   renderResearchLinks();
   hydrateSavedResearchLog();
   renderSourceUrlList();
+  renderFactCheckLinks();
   attachEvents();
 }
 
@@ -234,6 +238,8 @@ function attachEvents() {
   els.officialNewsCheck.addEventListener("change", renderResearchLinks);
   els.competitorCheck.addEventListener("change", renderResearchLinks);
   els.sourceUrlsInput.addEventListener("input", renderSourceUrlList);
+  els.factCheckTargetsInput.addEventListener("input", renderFactCheckLinks);
+  els.officialDomainInput.addEventListener("input", renderFactCheckLinks);
 }
 
 function loadPlatformProfiles() {
@@ -664,10 +670,12 @@ function collectBrief() {
     avoid: els.avoidInput.value.trim(),
     sourceNotes: els.sourcesInput.value.trim(),
     sourceUrls: parseSourceUrls(els.sourceUrlsInput.value),
+    sourceTexts: els.sourceTextsInput.value.trim(),
     researchNotes: els.researchNotesInput.value.trim(),
     researchSubject: els.researchSubjectInput.value.trim(),
     officialDomain: els.officialDomainInput.value.trim(),
     competitors: els.competitorsInput.value.trim(),
+    factCheckTargets: parseMultilineItems(els.factCheckTargetsInput.value),
     facts: els.factsInput.value.trim(),
     insights: els.insightsInput.value.trim(),
     openQuestions: els.openQuestionsInput.value.trim(),
@@ -680,6 +688,13 @@ function collectBrief() {
 }
 
 function parseSourceUrls(value) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function parseMultilineItems(value) {
   return value
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -738,6 +753,8 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
   const platformLabel = profile.label;
   const styleGuide = getPlatformOutputGuide(brief.platform);
   const sourceLine = brief.sourceUrls.length ? brief.sourceUrls.join("\n- ") : "なし";
+  const sourceTexts = brief.sourceTexts || "なし";
+  const factCheckLine = brief.factCheckTargets.length ? brief.factCheckTargets.join("\n- ") : "なし";
 
   return [
     `あなたは日本語のSNS/ブログ編集者です。${platformLabel}向けに、読者が思わず止まる自然な文章を書いてください。`,
@@ -749,6 +766,7 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
     "- 人がそのまま投稿したような温度感にする",
     "- 不自然なまとめ方、説明調、箇条書き調を避ける",
     `- 出力先は ${platformLabel}。${styleGuide}`,
+    "- 元ソースの主張をそのまま写さず、自分の投稿として再構成する",
     "",
     "この投稿で伝えたいこと",
     `- テーマ: ${subject}`,
@@ -758,6 +776,7 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
     `- 狙い: ${account?.goal || "未設定"}`,
     "",
     "調査で確認できたこと",
+    `- 先に公式確認したい論点:\n- ${factCheckLine}`,
     `- 事実: ${brief.facts || "未入力"}`,
     `- 読み/仮説: ${brief.insights || "未入力"}`,
     `- 未確認ポイント: ${brief.openQuestions || "未入力"}`,
@@ -768,11 +787,14 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
     `- 入れたい要素: ${brief.mustInclude || "未入力"}`,
     `- 避けたいこと: ${brief.avoid || "未入力"}`,
     `- 参考URL:\n- ${sourceLine}`,
+    `- 貼り付け本文 / 抜粋:\n${sourceTexts}`,
     "",
     "方針メモ",
     planText,
     "",
     "出力ルール",
+    "- 必要な論点は、まず公式情報を優先して確認した前提で書く",
+    "- 複数URLや貼り付け本文は、重複を整理して1本の自然な投稿に統合する",
     "- まず完成本文だけを出す",
     "- 必要ならその下に『別案フックを3つ』だけ付ける",
     "- 文章は自然な日本語にする",
@@ -875,12 +897,67 @@ function renderSourceUrlList() {
   `).join("");
 }
 
+function renderFactCheckLinks() {
+  const brief = collectBrief();
+  const links = buildFactCheckLinks(brief);
+  if (!links.length) {
+    els.factCheckLinkList.textContent = "公式確認したい論点を入れると、公式サイトやヘルプ向けの確認リンクがここに出ます。";
+    els.factCheckLinkList.classList.add("empty-state");
+    return;
+  }
+
+  els.factCheckLinkList.classList.remove("empty-state");
+  els.factCheckLinkList.innerHTML = links.map((link) => `
+    <article class="research-link-card">
+      <span class="mini-label">${escapeHtml(link.group)}</span>
+      <a href="${escapeAttribute(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a>
+      <p>${escapeHtml(link.description)}</p>
+    </article>
+  `).join("");
+}
+
+function buildFactCheckLinks(brief) {
+  const targets = brief.factCheckTargets || [];
+  const domain = normalizeDomain(brief.officialDomain);
+  if (!targets.length) {
+    return [];
+  }
+
+  const links = [];
+  targets.forEach((target) => {
+    if (domain) {
+      links.push({
+        group: "Official Verification",
+        label: `公式サイトで「${target}」を確認`,
+        description: "一次情報を優先して探す",
+        url: `https://www.google.com/search?q=${encodeURIComponent(`site:${domain} ${target}`)}`,
+      });
+      links.push({
+        group: "Official Verification",
+        label: `ヘルプ / FAQ で「${target}」を確認`,
+        description: "サポート、FAQ、プラン説明を確認する",
+        url: `https://www.google.com/search?q=${encodeURIComponent(`site:${domain} ${target} (help OR faq OR support OR docs OR pricing OR plan)`)}`,
+      });
+    }
+
+    links.push({
+      group: "Cross Check",
+      label: `ニュースで「${target}」を確認`,
+      description: "外部報道や周辺情報を確認する",
+      url: `https://news.google.com/search?q=${encodeURIComponent(target)}`,
+    });
+  });
+
+  return links;
+}
+
 function saveResearchLog() {
   const brief = collectBrief();
   savedResearchLog = {
     savedAt: new Date().toLocaleString("ja-JP"),
     researchSubject: brief.researchSubject || brief.keywords || "未設定",
     officialDomain: brief.officialDomain || "",
+    factCheckTargets: brief.factCheckTargets,
     facts: brief.facts || "",
     insights: brief.insights || "",
     openQuestions: brief.openQuestions || "",
@@ -906,6 +983,9 @@ function hydrateSavedResearchLog() {
   if (!els.factsInput.value) {
     els.factsInput.value = savedResearchLog.facts || "";
   }
+  if (!els.factCheckTargetsInput.value && savedResearchLog.factCheckTargets?.length) {
+    els.factCheckTargetsInput.value = savedResearchLog.factCheckTargets.join("\n");
+  }
   if (!els.insightsInput.value) {
     els.insightsInput.value = savedResearchLog.insights || "";
   }
@@ -917,6 +997,7 @@ function hydrateSavedResearchLog() {
   }
 
   renderSavedResearchSummary();
+  renderFactCheckLinks();
 }
 
 function renderSavedResearchSummary() {
@@ -931,6 +1012,7 @@ function renderSavedResearchSummary() {
     `最終保存: ${savedResearchLog.savedAt}`,
     `調査テーマ: ${savedResearchLog.researchSubject || "未設定"}`,
     `公式ドメイン: ${savedResearchLog.officialDomain || "未設定"}`,
+    `公式確認論点: ${savedResearchLog.factCheckTargets?.length || 0}`,
     `確認できた事実: ${savedResearchLog.facts || "未設定"}`,
     `仮説・読み: ${savedResearchLog.insights || "未設定"}`,
     `未確認ポイント: ${savedResearchLog.openQuestions || "未設定"}`,
