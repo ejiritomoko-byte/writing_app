@@ -222,12 +222,41 @@
         <div class="section-heading">
           <div>
             <p class="section-label">Step 3</p>
-            <h2>AI生成プロンプト</h2>
+            <h2>LLM生成</h2>
           </div>
           <span id="draftStatus" class="badge">未作成</span>
         </div>
 
         <div class="preview-stack">
+          <article class="preview-card">
+            <h3>プロバイダ設定</h3>
+            <div class="field-grid">
+              <label class="field">
+                <span>プロバイダ</span>
+                <select id="llmProviderSelect">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Claude</option>
+                  <option value="google">Gemini</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>モデル</span>
+                <input id="llmModelInput" type="text" placeholder="例: gpt-5 / claude-sonnet-4-20250514 / gemini-2.5-flash">
+              </label>
+            </div>
+            <p id="llmStatusText" class="research-note">APIキー未設定でも、まずはプロンプト生成までは使えます。</p>
+            <div class="action-row">
+              <button id="generateWithLlmButton" class="button button-primary" type="button">LLMで本文生成</button>
+            </div>
+          </article>
+
+          <article class="preview-card">
+            <h3>生成結果</h3>
+            <div id="llmOutput" class="rich-output empty-state">
+              APIキーを設定して「LLMで本文生成」を押すと、ここに本文が出ます。
+            </div>
+          </article>
+
           <article class="preview-card">
             <h3>ChatGPT / Claude / Gemini に渡す内容</h3>
             <div id="draftPreview" class="rich-output empty-state">
@@ -241,6 +270,7 @@
           </label>
 
           <div class="action-row">
+            <button id="copyOutputButton" class="button button-secondary" type="button">生成結果をコピー</button>
             <button id="copyDraftButton" class="button button-primary" type="button">プロンプトをコピー</button>
           </div>
         </div>

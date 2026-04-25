@@ -326,6 +326,10 @@ textarea:focus {
   white-space: pre-wrap;
 }
 
+#llmOutput {
+  min-height: 140px;
+}
+
 .empty-state {
   color: var(--muted);
 }
