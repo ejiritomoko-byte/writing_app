@@ -93,10 +93,65 @@ const defaultAccounts = [
   },
 ];
 
+const postTypePresets = {
+  news: {
+    label: "速報・話題共有",
+    angle: "いま起きた変化を最短で伝える",
+    tone: "早めに共有したいが、断定しすぎない",
+    promptFocus: "事実確認できた変化を先に置き、読者がすぐ状況をつかめるようにする",
+  },
+  insight: {
+    label: "気づき・学び",
+    angle: "出来事から見えてきた学びを伝える",
+    tone: "落ち着いていて、少し納得感がある",
+    promptFocus: "表面の話題より、そこから何が見えたかを中心に書く",
+  },
+  comparison: {
+    label: "比較・整理",
+    angle: "違いを並べて判断しやすくする",
+    tone: "整理されていて、公平",
+    promptFocus: "AとBの差、選び方、向いている人の違いを明確にする",
+  },
+  opinion: {
+    label: "感想・意見",
+    angle: "自分の感じたことを主軸にする",
+    tone: "人間っぽく、温度感がある",
+    promptFocus: "事実の要約で終わらず、自分の反応や迷いを残す",
+  },
+  problem: {
+    label: "問題提起",
+    angle: "見過ごされがちな引っかかりを言語化する",
+    tone: "少し鋭いが、煽りすぎない",
+    promptFocus: "何が問題なのか、誰が困るのか、どこが未確認なのかを分けて書く",
+  },
+};
+
+const requiredFieldsByPlatform = {
+  note: ["postType", "coreMessage", "topic", "facts", "personalView"],
+  x: ["postType", "coreMessage", "facts", "personalView"],
+  wordpress: ["postType", "coreMessage", "topic", "facts", "audience", "mustInclude"],
+  ameblo: ["postType", "coreMessage", "topic", "personalView"],
+  instagram: ["postType", "coreMessage", "personalView", "mustInclude"],
+  threads: ["postType", "coreMessage", "facts", "personalView"],
+};
+
+const fieldDefinitions = {
+  postType: { label: "投稿タイプ", getValue: () => els.postTypeSelect.value.trim() },
+  coreMessage: { label: "誰に何を伝えたいか", getValue: () => els.coreMessageInput.value.trim() },
+  personalView: { label: "自分の感想・温度感", getValue: () => els.personalViewInput.value.trim() },
+  topic: { label: "ざっくりした内容", getValue: () => els.topicInput.value.trim() },
+  facts: { label: "確認できた事実", getValue: () => els.factsInput.value.trim() },
+  audience: { label: "ターゲット読者", getValue: () => els.audienceInput.value.trim() },
+  mustInclude: { label: "入れたい要素", getValue: () => els.mustIncludeInput.value.trim() },
+};
+
 const els = {
   briefForm: document.getElementById("briefForm"),
   platformSelect: document.getElementById("platformSelect"),
   accountSelect: document.getElementById("accountSelect"),
+  postTypeSelect: document.getElementById("postTypeSelect"),
+  coreMessageInput: document.getElementById("coreMessageInput"),
+  personalViewInput: document.getElementById("personalViewInput"),
   keywordsInput: document.getElementById("keywordsInput"),
   audienceInput: document.getElementById("audienceInput"),
   topicInput: document.getElementById("topicInput"),
@@ -115,6 +170,7 @@ const els = {
   researchLinks: document.getElementById("researchLinks"),
   savedResearchSummary: document.getElementById("savedResearchSummary"),
   platformPresetSummary: document.getElementById("platformPresetSummary"),
+  requiredFieldsSummary: document.getElementById("requiredFieldsSummary"),
   researchNotesInput: document.getElementById("researchNotesInput"),
   sourceUrlsInput: document.getElementById("sourceUrlsInput"),
   sourceUrlList: document.getElementById("sourceUrlList"),
@@ -126,6 +182,7 @@ const els = {
   openQuestionsInput: document.getElementById("openQuestionsInput"),
   researchSummary: document.getElementById("researchSummary"),
   planPreview: document.getElementById("planPreview"),
+  openingPreview: document.getElementById("openingPreview"),
   planEditor: document.getElementById("planEditor"),
   planStatus: document.getElementById("planStatus"),
   appModeTitle: document.getElementById("appModeTitle"),
@@ -174,6 +231,7 @@ function hydrate() {
   fillAccountEditor(editingAccountId);
   fillPlatformEditor(editingPlatformKey);
   renderPlatformPresetSummary();
+  renderRequiredFieldsSummary();
   renderResearchLinks();
   hydrateSavedResearchLog();
   renderSourceUrlList();
@@ -193,6 +251,7 @@ function attachEvents() {
     els.trendCheck.checked = true;
     els.officialNewsCheck.checked = true;
     renderPlatformPresetSummary();
+    renderRequiredFieldsSummary();
     renderEmptyState();
   });
 
@@ -230,7 +289,20 @@ function attachEvents() {
   els.newAccountButton.addEventListener("click", createNewAccountDraft);
   els.deleteAccountButton.addEventListener("click", deleteAccount);
   els.savePlatformButton.addEventListener("click", savePlatformProfile);
-  els.platformSelect.addEventListener("change", renderPlatformPresetSummary);
+  els.platformSelect.addEventListener("change", () => {
+    renderPlatformPresetSummary();
+    renderRequiredFieldsSummary();
+  });
+  els.postTypeSelect.addEventListener("change", () => {
+    renderPlatformPresetSummary();
+    renderRequiredFieldsSummary();
+  });
+  els.coreMessageInput.addEventListener("input", renderRequiredFieldsSummary);
+  els.personalViewInput.addEventListener("input", renderRequiredFieldsSummary);
+  els.audienceInput.addEventListener("input", renderRequiredFieldsSummary);
+  els.topicInput.addEventListener("input", renderRequiredFieldsSummary);
+  els.mustIncludeInput.addEventListener("input", renderRequiredFieldsSummary);
+  els.factsInput.addEventListener("input", renderRequiredFieldsSummary);
   els.buildResearchLinksButton.addEventListener("click", renderResearchLinks);
   els.openResearchSweepButton.addEventListener("click", openResearchSweep);
   els.saveResearchLogButton.addEventListener("click", saveResearchLog);
@@ -472,6 +544,7 @@ function savePlatformProfile() {
 
 function renderPlatformPresetSummary() {
   const profile = platformProfiles[els.platformSelect.value] || platformProfiles.note;
+  const postType = postTypePresets[els.postTypeSelect.value] || postTypePresets.news;
   const ctaLabels = {
     soft: "やさしめ",
     medium: "標準",
@@ -480,12 +553,32 @@ function renderPlatformPresetSummary() {
 
   els.platformPresetSummary.textContent = [
     `${profile.label} の現在設定`,
+    `投稿タイプ: ${postType.label}`,
+    `投稿の軸: ${postType.angle}`,
     `文字数目安: ${profile.lengthGuide || "未設定"}`,
     `ハッシュタグ: ${profile.hashtags || "未設定"}`,
     `見出し数: ${profile.headingCount || "未設定"}`,
     `CTAの強さ: ${ctaLabels[profile.ctaStrength] || "標準"}`,
     `運用メモ: ${profile.notes || "未設定"}`,
   ].join("\n");
+}
+
+function getRequiredFields(platform) {
+  return requiredFieldsByPlatform[platform] || requiredFieldsByPlatform.note;
+}
+
+function getMissingRequiredFields(brief) {
+  return getRequiredFields(brief.platform).filter((key) => !fieldDefinitions[key].getValue());
+}
+
+function renderRequiredFieldsSummary() {
+  const brief = collectBrief();
+  const requiredKeys = getRequiredFields(brief.platform);
+  const lines = requiredKeys.map((key) => {
+    const filled = Boolean(fieldDefinitions[key].getValue());
+    return `${filled ? "✓" : "・"} ${fieldDefinitions[key].label}${filled ? "" : " が必須"}`;
+  });
+  els.requiredFieldsSummary.textContent = lines.join("\n");
 }
 
 function renderResearchLinks() {
@@ -611,17 +704,28 @@ function openResearchSweep() {
 
 function buildPlanFromInputs() {
   const brief = collectBrief();
+  const missingFields = getMissingRequiredFields(brief);
+  if (missingFields.length) {
+    window.alert(`この投稿では次が必須です:\n- ${missingFields.map((key) => fieldDefinitions[key].label).join("\n- ")}`);
+    renderRequiredFieldsSummary();
+    return;
+  }
   const account = accounts.find((item) => item.id === brief.accountId);
   const profile = platformProfiles[brief.platform] || platformProfiles.note;
+  const postType = postTypePresets[brief.postType] || postTypePresets.news;
   const audienceText = brief.customAudience || account?.audience || "未入力";
+  const openings = buildOpeningVariants(brief, account, profile, audienceText);
 
   const researchSummary = [
     `確認対象: ${brief.researchTargets.join(" / ") || "指定なし"}`,
     `出力先: ${profile.label}`,
+    `投稿タイプ: ${postType.label}`,
     `キーワード: ${brief.keywords || "未入力"}`,
     `調査テーマ: ${brief.researchSubject || "未入力"}`,
     `公式ドメイン: ${brief.officialDomain || "未入力"}`,
     `ターゲット読者: ${audienceText}`,
+    `誰に何を伝えたいか: ${brief.coreMessage || "未入力"}`,
+    `自分の感想・温度感: ${brief.personalView || "未入力"}`,
     `文字数目安: ${profile.lengthGuide || "未設定"}`,
     `調査メモ: ${brief.researchNotes || "未入力"}`,
     `確認できた事実: ${brief.facts || "未入力"}`,
@@ -633,12 +737,18 @@ function buildPlanFromInputs() {
   const plan = [
     `対象アカウント: ${account?.name || "未設定アカウント"}`,
     `出力先: ${profile.label}`,
+    `投稿タイプ: ${postType.label}`,
     `アカウントの役割: ${account?.purpose || "未設定"}`,
     `推奨トーン: ${account?.tone || "未設定"}`,
     `想定ユーザー層: ${audienceText}`,
+    `誰に何を伝えるか: ${brief.coreMessage || "未入力"}`,
+    `書き手の温度感: ${brief.personalView || "未入力"}`,
     "",
     "執筆方針",
     `${profile.strategy}`,
+    `投稿タイプの軸: ${postType.angle}`,
+    `投稿タイプの温度感: ${postType.tone}`,
+    `投稿タイプで重視すること: ${postType.promptFocus}`,
     `媒体特性メモ: ${profile.hookStyle}`,
     `文字数目安: ${profile.lengthGuide || "未設定"}`,
     `ハッシュタグ方針: ${profile.hashtags || "未設定"}`,
@@ -652,6 +762,7 @@ function buildPlanFromInputs() {
     `${brief.insights ? `事実からの読み: ${brief.insights}` : "事実からの読み: 確認できた事実から解釈を分けて書く。"}`,
     `${brief.openQuestions ? `未確認ポイント: ${brief.openQuestions}` : "未確認ポイント: 不確かな点は断定せず、注意書きを残す。"}`,
     `読者への寄せ方: ${audienceText} が「自分向けの内容だ」と感じる語彙と具体例を優先する。`,
+    `感情の置き方: ${brief.personalView || "反応が伝わる一文を必ず残す。"}`,
     "",
     "構成案",
     profile.structure,
@@ -667,6 +778,8 @@ function buildPlanFromInputs() {
   els.researchSummary.classList.remove("empty-state");
   els.planPreview.textContent = plan;
   els.planPreview.classList.remove("empty-state");
+  els.openingPreview.textContent = openings;
+  els.openingPreview.classList.remove("empty-state");
   els.planEditor.value = plan;
   els.planStatus.textContent = "\u30ec\u30d3\u30e5\u30fc\u5f85\u3061";
   els.draftPreview.textContent = "\u65b9\u91dd\u304c\u78ba\u5b9a\u3057\u305f\u3089\u3053\u3053\u306b\u751f\u6210\u30d7\u30ed\u30f3\u30d7\u30c8\u304c\u51fa\u307e\u3059\u3002";
@@ -678,6 +791,9 @@ function collectBrief() {
   return {
     platform: els.platformSelect.value,
     accountId: els.accountSelect.value,
+    postType: els.postTypeSelect.value,
+    coreMessage: els.coreMessageInput.value.trim(),
+    personalView: els.personalViewInput.value.trim(),
     keywords: els.keywordsInput.value.trim(),
     customAudience: els.audienceInput.value.trim(),
     topic: els.topicInput.value.trim(),
@@ -700,6 +816,20 @@ function collectBrief() {
       els.competitorCheck.checked ? "周辺事例" : "",
     ].filter(Boolean),
   };
+}
+
+function buildOpeningVariants(brief, account, profile, audienceText) {
+  const subject = brief.researchSubject || brief.keywords || brief.topic || "この話題";
+  const core = brief.coreMessage || `${audienceText} に向けて ${subject} を伝える`;
+  const fact = brief.facts || `${subject} について確認できた変化がある`;
+  const feeling = brief.personalView || "自分の引っかかりや実感を残す";
+  const postType = postTypePresets[brief.postType] || postTypePresets.news;
+
+  return [
+    `1. ${subject}、ただの話題かと思ったら、${fact}。`,
+    `2. ${core}。${feeling} がにじむ入りにする。`,
+    `3. ${postType.label}として入るなら、「${subject}って結局どうなの？」から始めて ${audienceText} を引き込む。`,
+  ].join("\n");
 }
 
 function parseSourceUrls(value) {
@@ -743,6 +873,12 @@ function buildHooks(brief, account, profile) {
 
 function buildDraft(planText) {
   const brief = collectBrief();
+  const missingFields = getMissingRequiredFields(brief);
+  if (missingFields.length) {
+    window.alert(`この投稿では次が必須です:\n- ${missingFields.map((key) => fieldDefinitions[key].label).join("\n- ")}`);
+    renderRequiredFieldsSummary();
+    return;
+  }
   const account = accounts.find((item) => item.id === brief.accountId);
   const profile = platformProfiles[brief.platform] || platformProfiles.note;
   const notes = els.draftNotesInput.value.trim();
@@ -767,9 +903,11 @@ function buildDraft(planText) {
 function buildGenerationPrompt({ brief, account, profile, audienceText, subject, planText, notes }) {
   const platformLabel = profile.label;
   const styleGuide = getPlatformOutputGuide(brief.platform);
+  const postType = postTypePresets[brief.postType] || postTypePresets.news;
   const sourceLine = brief.sourceUrls.length ? brief.sourceUrls.join("\n- ") : "なし";
   const sourceTexts = brief.sourceTexts || "なし";
   const factCheckLine = brief.factCheckTargets.length ? brief.factCheckTargets.join("\n- ") : "なし";
+  const openings = buildOpeningVariants(brief, account, profile, audienceText);
 
   return [
     `あなたは日本語のSNS/ブログ編集者です。${platformLabel}向けに、読者が思わず止まる自然な文章を書いてください。`,
@@ -781,11 +919,16 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
     "- 人がそのまま投稿したような温度感にする",
     "- 不自然なまとめ方、説明調、箇条書き調を避ける",
     `- 出力先は ${platformLabel}。${styleGuide}`,
+    `- 投稿タイプは ${postType.label}。${postType.promptFocus}`,
     "- 元ソースの主張をそのまま写さず、自分の投稿として再構成する",
+    "- 誰に何を伝えたいかが一読で分かるようにする",
+    "- 事実を書いたあとに、自分の感想や迷いを短くでも残す",
     "",
     "この投稿で伝えたいこと",
     `- テーマ: ${subject}`,
     `- 誰向けか: ${audienceText}`,
+    `- 誰に何を伝えたいか: ${brief.coreMessage || "未入力"}`,
+    `- 自分の感想・温度感: ${brief.personalView || "未入力"}`,
     `- アカウントの役割: ${account?.purpose || "未設定"}`,
     `- トーン: ${account?.tone || "未設定"}`,
     `- 狙い: ${account?.goal || "未設定"}`,
@@ -807,6 +950,9 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
     "方針メモ",
     planText,
     "",
+    "冒頭の方向性",
+    openings,
+    "",
     "出力ルール",
     "- 必要な論点は、まず公式情報を優先して確認した前提で書く",
     "- 複数URLや貼り付け本文は、重複を整理して1本の自然な投稿に統合する",
@@ -815,6 +961,7 @@ function buildGenerationPrompt({ brief, account, profile, audienceText, subject,
     "- 文章は自然な日本語にする",
     "- 『確認済みの事実をもとに』のような機械っぽい表現は禁止",
     "- 『誰に何を伝えたいか』が一読で伝わるようにする",
+    "- 冒頭は3案考えたうえで、いちばん引きが強く自然なものを採用する",
     "",
     `追加指示: ${notes || "特になし"}`,
   ].join("\n");
@@ -1039,6 +1186,8 @@ function renderEmptyState() {
   els.researchSummary.textContent = "入力内容からここに調査整理が表示されます。";
   els.researchSummary.classList.add("empty-state");
   els.planPreview.textContent = "\u65b9\u91dd\u3092\u3064\u304f\u308b\u3068\u3001\u8abf\u67fb\u30fb\u30c8\u30fc\u30f3\u30fb\u69cb\u6210\u306e\u78ba\u8a8d\u30dd\u30a4\u30f3\u30c8\u304c\u3053\u3053\u306b\u51fa\u307e\u3059\u3002";
+  els.openingPreview.textContent = "方針をつくると、投稿の入り口になる冒頭3案がここに出ます。";
+  els.openingPreview.classList.add("empty-state");
   els.planEditor.value = "";
   els.planStatus.textContent = "\u672a\u78ba\u8a8d";
   els.draftPreview.textContent = "\u65b9\u91dd\u304c\u78ba\u5b9a\u3057\u305f\u3089\u3053\u3053\u306b\u751f\u6210\u30d7\u30ed\u30f3\u30d7\u30c8\u304c\u51fa\u307e\u3059\u3002";

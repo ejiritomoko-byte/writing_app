@@ -60,6 +60,34 @@
 
           <div class="field-grid">
             <label class="field">
+              <span>投稿タイプ</span>
+              <select id="postTypeSelect">
+                <option value="news">速報・話題共有</option>
+                <option value="insight">気づき・学び</option>
+                <option value="comparison">比較・整理</option>
+                <option value="opinion">感想・意見</option>
+                <option value="problem">問題提起</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>誰に何を伝えたいか</span>
+              <input id="coreMessageInput" type="text" placeholder="例: Claude Codeを使っている人に、Proの扱いが変わった可能性を共有したい">
+            </label>
+          </div>
+
+          <label class="field">
+            <span>自分の感想・温度感</span>
+            <textarea id="personalViewInput" rows="4" placeholder="例: ちょっと困る、でも騒ぎすぎたくない。使っている側の不便さはちゃんと伝えたい"></textarea>
+          </label>
+
+          <article class="preview-card compact-card">
+            <h3>この投稿で必須</h3>
+            <div id="requiredFieldsSummary" class="rich-output"></div>
+          </article>
+
+          <div class="field-grid">
+            <label class="field">
               <span>キーワード</span>
               <input id="keywordsInput" type="text" placeholder="例: AIライティング, 習慣化, 個人開発">
             </label>
@@ -207,6 +235,13 @@
             <h3>生成方針</h3>
             <div id="planPreview" class="rich-output empty-state">
               方針をつくると、構成・トーン・見出し案・投稿の狙いを確認できます。
+            </div>
+          </article>
+
+          <article class="preview-card">
+            <h3>冒頭3案</h3>
+            <div id="openingPreview" class="rich-output empty-state">
+              方針をつくると、投稿の入り口になる冒頭3案がここに出ます。
             </div>
           </article>
 

@@ -271,6 +271,10 @@ textarea:focus {
   font-size: 0.92rem;
 }
 
+.compact-card .rich-output {
+  min-height: 0;
+}
+
 .research-link-card .mini-label {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
