@@ -20,8 +20,8 @@
         <p class="hero-card-label">作成フロー</p>
         <p class="flow-line">入力 → 調査 → 方針確認 → 本文作成</p>
         <div class="mode-card">
-          <strong id="appModeTitle">利用モードを確認中</strong>
-          <p id="appModeText">現在の環境に応じて、使える機能を表示します。</p>
+          <strong id="appModeTitle">課金なし運用</strong>
+          <p id="appModeText">このアプリは調査整理とプロンプト作成に絞って使います。本文生成は外部AIに渡す前提です。</p>
         </div>
       </div>
     </header>
@@ -226,7 +226,7 @@
         <div class="section-heading">
           <div>
             <p class="section-label">Step 3</p>
-            <h2>LLM生成</h2>
+            <h2>本文生成プロンプト</h2>
           </div>
           <span id="draftStatus" class="badge">未作成</span>
         </div>
@@ -236,37 +236,8 @@
             <h3>使い方</h3>
             <div id="llmSetupGuide" class="rich-output">
               1. Step 1 と Step 2 を埋める
-              2. Step 3 でプロバイダとモデルを選ぶ
-              3. ローカル版なら API キー設定後に本文生成
-            </div>
-          </article>
-
-          <article class="preview-card">
-            <h3>プロバイダ設定</h3>
-            <div class="field-grid">
-              <label class="field">
-                <span>プロバイダ</span>
-                <select id="llmProviderSelect">
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Claude</option>
-                  <option value="google">Gemini</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>モデル</span>
-                <input id="llmModelInput" type="text" placeholder="例: gpt-5 / claude-sonnet-4-20250514 / gemini-2.5-flash">
-              </label>
-            </div>
-            <p id="llmStatusText" class="research-note">OpenAI を既定にしています。APIキー未設定でも、まずはプロンプト生成までは使えます。</p>
-            <div class="action-row">
-              <button id="generateWithLlmButton" class="button button-primary" type="button">LLMで本文生成</button>
-            </div>
-          </article>
-
-          <article class="preview-card">
-            <h3>生成結果</h3>
-            <div id="llmOutput" class="rich-output empty-state">
-              APIキーを設定して「LLMで本文生成」を押すと、ここに本文が出ます。
+              2. Step 3 のプロンプトをコピーする
+              3. ChatGPT / Claude / Gemini に貼って本文を生成する
             </div>
           </article>
 
@@ -283,7 +254,6 @@
           </label>
 
           <div class="action-row">
-            <button id="copyOutputButton" class="button button-secondary" type="button">生成結果をコピー</button>
             <button id="copyDraftButton" class="button button-primary" type="button">プロンプトをコピー</button>
           </div>
         </div>

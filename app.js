@@ -3,14 +3,6 @@ const storageKeys = {
   selectedAccountId: "writing-app-selected-account-id",
   platformSettings: "writing-app-platform-settings",
   savedResearchLog: "writing-app-saved-research-log",
-  llmProvider: "writing-app-llm-provider",
-  llmModel: "writing-app-llm-model",
-};
-
-const llmDefaults = {
-  openai: "gpt-5",
-  anthropic: "claude-sonnet-4-20250514",
-  google: "gemini-2.5-flash",
 };
 
 const basePlatformProfiles = {
@@ -139,11 +131,6 @@ const els = {
   appModeTitle: document.getElementById("appModeTitle"),
   appModeText: document.getElementById("appModeText"),
   llmSetupGuide: document.getElementById("llmSetupGuide"),
-  llmProviderSelect: document.getElementById("llmProviderSelect"),
-  llmModelInput: document.getElementById("llmModelInput"),
-  llmStatusText: document.getElementById("llmStatusText"),
-  generateWithLlmButton: document.getElementById("generateWithLlmButton"),
-  llmOutput: document.getElementById("llmOutput"),
   draftPreview: document.getElementById("draftPreview"),
   draftStatus: document.getElementById("draftStatus"),
   draftNotesInput: document.getElementById("draftNotesInput"),
@@ -165,7 +152,6 @@ const els = {
   platformCtaStrengthInput: document.getElementById("platformCtaStrengthInput"),
   platformNotesInput: document.getElementById("platformNotesInput"),
   savePlatformButton: document.getElementById("savePlatformButton"),
-  copyOutputButton: document.getElementById("copyOutputButton"),
   copyDraftButton: document.getElementById("copyDraftButton"),
   resetButton: document.getElementById("resetButton"),
   approvePlanButton: document.getElementById("approvePlanButton"),
@@ -178,8 +164,6 @@ let selectedAccountId = loadSelectedAccountId();
 let editingAccountId = selectedAccountId || accounts[0]?.id || null;
 let editingPlatformKey = "note";
 let savedResearchLog = loadSavedResearchLog();
-let llmProvider = loadLlmProvider();
-let llmModel = loadLlmModel();
 
 hydrate();
 
@@ -194,10 +178,8 @@ function hydrate() {
   hydrateSavedResearchLog();
   renderSourceUrlList();
   renderFactCheckLinks();
-  hydrateLlmSettings();
   renderAppMode();
   attachEvents();
-  void refreshLlmStatus();
 }
 
 function attachEvents() {
@@ -238,19 +220,6 @@ function attachEvents() {
     }, 1600);
   });
 
-  els.copyOutputButton.addEventListener("click", async () => {
-    const text = els.llmOutput.textContent.trim();
-    if (!text || text.includes("APIキーを設定して")) {
-      window.alert("コピーする生成結果がまだありません。");
-      return;
-    }
-    await navigator.clipboard.writeText(text);
-    els.copyOutputButton.textContent = "コピー済み";
-    window.setTimeout(() => {
-      els.copyOutputButton.textContent = "生成結果をコピー";
-    }, 1600);
-  });
-
   els.openSettingsButton.addEventListener("click", () => {
     renderAccountCards();
     fillAccountEditor(editingAccountId);
@@ -265,7 +234,6 @@ function attachEvents() {
   els.buildResearchLinksButton.addEventListener("click", renderResearchLinks);
   els.openResearchSweepButton.addEventListener("click", openResearchSweep);
   els.saveResearchLogButton.addEventListener("click", saveResearchLog);
-  els.generateWithLlmButton.addEventListener("click", generateWithLlm);
   els.keywordsInput.addEventListener("input", renderResearchLinks);
   els.researchSubjectInput.addEventListener("input", renderResearchLinks);
   els.officialDomainInput.addEventListener("input", renderResearchLinks);
@@ -276,8 +244,6 @@ function attachEvents() {
   els.sourceUrlsInput.addEventListener("input", renderSourceUrlList);
   els.factCheckTargetsInput.addEventListener("input", renderFactCheckLinks);
   els.officialDomainInput.addEventListener("input", renderFactCheckLinks);
-  els.llmProviderSelect.addEventListener("change", onLlmProviderChange);
-  els.llmModelInput.addEventListener("input", onLlmModelInput);
 }
 
 function loadPlatformProfiles() {
@@ -327,14 +293,6 @@ function loadSavedResearchLog() {
   }
 }
 
-function loadLlmProvider() {
-  return localStorage.getItem(storageKeys.llmProvider) || "openai";
-}
-
-function loadLlmModel() {
-  return localStorage.getItem(storageKeys.llmModel) || llmDefaults[loadLlmProvider()] || llmDefaults.openai;
-}
-
 function loadSelectedAccountId() {
   return localStorage.getItem(storageKeys.selectedAccountId) || accounts[0]?.id || null;
 }
@@ -352,138 +310,14 @@ function persistSavedResearchLog() {
   localStorage.setItem(storageKeys.savedResearchLog, JSON.stringify(savedResearchLog));
 }
 
-function persistLlmSettings() {
-  localStorage.setItem(storageKeys.llmProvider, llmProvider);
-  localStorage.setItem(storageKeys.llmModel, llmModel);
-}
-
-function hydrateLlmSettings() {
-  els.llmProviderSelect.value = llmProvider;
-  els.llmModelInput.value = llmModel;
-}
-
-function onLlmProviderChange() {
-  llmProvider = els.llmProviderSelect.value;
-  if (!els.llmModelInput.value.trim() || Object.values(llmDefaults).includes(llmModel)) {
-    llmModel = llmDefaults[llmProvider];
-    els.llmModelInput.value = llmModel;
-  } else {
-    llmModel = els.llmModelInput.value.trim();
-  }
-  persistLlmSettings();
-  void refreshLlmStatus();
-}
-
-function onLlmModelInput() {
-  llmModel = els.llmModelInput.value.trim();
-  persistLlmSettings();
-}
-
-async function refreshLlmStatus() {
-  try {
-    const response = await fetch("/api/providers");
-    if (!response.ok) {
-      throw new Error("status");
-    }
-    const data = await response.json();
-    const current = data.providers?.[llmProvider];
-    if (current?.configured) {
-      els.llmStatusText.textContent = `${labelForProvider(llmProvider)} のAPIキー設定済み。モデル: ${llmModel || llmDefaults[llmProvider]}`;
-    } else {
-      els.llmStatusText.textContent = `${labelForProvider(llmProvider)} のAPIキーが未設定です。.env にキーを入れると生成できます。`;
-    }
-    renderAppMode(data.providers);
-  } catch {
-    els.llmStatusText.textContent = "ローカルAPIサーバーに未接続です。`python server.py` で起動してください。";
-    renderAppMode();
-  }
-}
-
-async function generateWithLlm() {
-  const planText = els.planEditor.value.trim() || els.planPreview.textContent.trim();
-  if (!planText || planText.includes("方針をつくると")) {
-    window.alert("先に方針を作成してください。");
-    return;
-  }
-
-  const brief = collectBrief();
-  const account = accounts.find((item) => item.id === brief.accountId);
-  const profile = platformProfiles[brief.platform] || platformProfiles.note;
-  const audienceText = brief.customAudience || account?.audience || "読者";
-  const subject = brief.researchSubject || brief.keywords || brief.topic || "この話題";
-  const prompt = buildGenerationPrompt({
-    brief,
-    account,
-    profile,
-    audienceText,
-    subject,
-    planText,
-    notes: els.draftNotesInput.value.trim(),
-  });
-
-  els.llmOutput.textContent = "生成中...";
-  els.llmOutput.classList.remove("empty-state");
-
-  try {
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        provider: llmProvider,
-        model: els.llmModelInput.value.trim() || llmDefaults[llmProvider],
-        prompt,
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || "LLM generation failed");
-    }
-
-    els.llmOutput.textContent = data.text || "本文を取得できませんでした。";
-    els.draftStatus.textContent = "生成済み";
-  } catch (error) {
-    els.llmOutput.textContent = `生成に失敗しました: ${error.message}`;
-    els.llmOutput.classList.remove("empty-state");
-  }
-}
-
-function labelForProvider(provider) {
-  if (provider === "anthropic") {
-    return "Claude";
-  }
-  if (provider === "google") {
-    return "Gemini";
-  }
-  return "OpenAI";
-}
-
-function renderAppMode(providers) {
-  const isLocalApp = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
-  if (isLocalApp) {
-    const configuredCount = providers
-      ? Object.values(providers).filter((provider) => provider.configured).length
-      : 0;
-    els.appModeTitle.textContent = "ローカルLLM版";
-    els.appModeText.textContent = configuredCount
-      ? `APIキー設定済みプロバイダ: ${configuredCount}件。調査整理に加えて本文生成まで使えます。`
-      : "調査整理とプロンプト生成は使えます。.env に API キーを入れると本文生成まで使えます。";
-    els.llmSetupGuide.textContent = [
-      "1. Step 1 と Step 2 を埋める",
-      "2. .env に使いたい API キーを入れる。迷うならまず OpenAI でOK",
-      "3. python server.py を起動したまま Step 3 で本文生成する",
-    ].join("\n");
-    return;
-  }
-
-  els.appModeTitle.textContent = "GitHub Pages版";
-  els.appModeText.textContent = "調査整理と生成プロンプト作成が使えます。本文生成はローカル版で使います。";
+function renderAppMode() {
+  els.appModeTitle.textContent = "\u8ab2\u91d1\u306a\u3057\u904b\u7528";
+  els.appModeText.textContent =
+    "\u3053\u306e\u30a2\u30d7\u30ea\u306f\u8abf\u67fb\u6574\u7406\u3068\u30d7\u30ed\u30f3\u30d7\u30c8\u4f5c\u6210\u306b\u7d5e\u3063\u3066\u4f7f\u3044\u307e\u3059\u3002\u672c\u6587\u751f\u6210\u306f ChatGPT / Claude / Gemini \u306b\u6e21\u3059\u524d\u63d0\u3067\u3059\u3002";
   els.llmSetupGuide.textContent = [
-    "1. Pages版では調査と方針整理まで進める",
-    "2. 生成プロンプトをコピーする",
-    "3. ローカル版または ChatGPT / Claude / Gemini に渡して本文化する",
+    "1. Step 1 \u3067\u30c6\u30fc\u30de\u3084\u8a18\u4e8bURL\u3001\u672c\u6587\u629c\u7c8b\u3092\u5165\u308c\u308b",
+    "2. Step 2 \u3067\u4e8b\u5b9f\u30fb\u4eee\u8aac\u30fb\u672a\u78ba\u8a8d\u30dd\u30a4\u30f3\u30c8\u3092\u6574\u7406\u3059\u308b",
+    "3. Step 3 \u306e\u30d7\u30ed\u30f3\u30d7\u30c8\u3092\u30b3\u30d4\u30fc\u3057\u3066\u5916\u90e8AI\u3067\u672c\u6587\u751f\u6210\u3059\u308b",
   ].join("\n");
 }
 
@@ -834,12 +668,10 @@ function buildPlanFromInputs() {
   els.planPreview.textContent = plan;
   els.planPreview.classList.remove("empty-state");
   els.planEditor.value = plan;
-  els.planStatus.textContent = "レビュー待ち";
-  els.draftPreview.textContent = "方針が確定したらここに生成プロンプトが出ます。";
+  els.planStatus.textContent = "\u30ec\u30d3\u30e5\u30fc\u5f85\u3061";
+  els.draftPreview.textContent = "\u65b9\u91dd\u304c\u78ba\u5b9a\u3057\u305f\u3089\u3053\u3053\u306b\u751f\u6210\u30d7\u30ed\u30f3\u30d7\u30c8\u304c\u51fa\u307e\u3059\u3002";
   els.draftPreview.classList.add("empty-state");
-  els.llmOutput.textContent = "APIキーを設定して「LLMで本文生成」を押すと、ここに本文が出ます。";
-  els.llmOutput.classList.add("empty-state");
-  els.draftStatus.textContent = "未作成";
+  els.draftStatus.textContent = "\u672a\u4f5c\u6210";
 }
 
 function collectBrief() {
@@ -1206,15 +1038,12 @@ function renderSavedResearchSummary() {
 function renderEmptyState() {
   els.researchSummary.textContent = "入力内容からここに調査整理が表示されます。";
   els.researchSummary.classList.add("empty-state");
-  els.planPreview.textContent = "方針をつくると、構成・トーン・見出し案・投稿の狙いを確認できます。";
-  els.planPreview.classList.add("empty-state");
+  els.planPreview.textContent = "\u65b9\u91dd\u3092\u3064\u304f\u308b\u3068\u3001\u8abf\u67fb\u30fb\u30c8\u30fc\u30f3\u30fb\u69cb\u6210\u306e\u78ba\u8a8d\u30dd\u30a4\u30f3\u30c8\u304c\u3053\u3053\u306b\u51fa\u307e\u3059\u3002";
   els.planEditor.value = "";
-  els.planStatus.textContent = "未作成";
-  els.draftPreview.textContent = "方針が確定したらここに生成プロンプトが出ます。";
+  els.planStatus.textContent = "\u672a\u78ba\u8a8d";
+  els.draftPreview.textContent = "\u65b9\u91dd\u304c\u78ba\u5b9a\u3057\u305f\u3089\u3053\u3053\u306b\u751f\u6210\u30d7\u30ed\u30f3\u30d7\u30c8\u304c\u51fa\u307e\u3059\u3002";
   els.draftPreview.classList.add("empty-state");
-  els.llmOutput.textContent = "APIキーを設定して「LLMで本文生成」を押すと、ここに本文が出ます。";
-  els.llmOutput.classList.add("empty-state");
-  els.draftStatus.textContent = "未作成";
+  els.draftStatus.textContent = "\u672a\u4f5c\u6210";
 }
 
 function escapeHtml(value) {
