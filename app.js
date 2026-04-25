@@ -136,6 +136,9 @@ const els = {
   planPreview: document.getElementById("planPreview"),
   planEditor: document.getElementById("planEditor"),
   planStatus: document.getElementById("planStatus"),
+  appModeTitle: document.getElementById("appModeTitle"),
+  appModeText: document.getElementById("appModeText"),
+  llmSetupGuide: document.getElementById("llmSetupGuide"),
   llmProviderSelect: document.getElementById("llmProviderSelect"),
   llmModelInput: document.getElementById("llmModelInput"),
   llmStatusText: document.getElementById("llmStatusText"),
@@ -192,6 +195,7 @@ function hydrate() {
   renderSourceUrlList();
   renderFactCheckLinks();
   hydrateLlmSettings();
+  renderAppMode();
   attachEvents();
   void refreshLlmStatus();
 }
@@ -388,8 +392,10 @@ async function refreshLlmStatus() {
     } else {
       els.llmStatusText.textContent = `${labelForProvider(llmProvider)} のAPIキーが未設定です。.env にキーを入れると生成できます。`;
     }
+    renderAppMode(data.providers);
   } catch {
     els.llmStatusText.textContent = "ローカルAPIサーバーに未接続です。`python server.py` で起動してください。";
+    renderAppMode();
   }
 }
 
@@ -452,6 +458,33 @@ function labelForProvider(provider) {
     return "Gemini";
   }
   return "OpenAI";
+}
+
+function renderAppMode(providers) {
+  const isLocalApp = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+  if (isLocalApp) {
+    const configuredCount = providers
+      ? Object.values(providers).filter((provider) => provider.configured).length
+      : 0;
+    els.appModeTitle.textContent = "ローカルLLM版";
+    els.appModeText.textContent = configuredCount
+      ? `APIキー設定済みプロバイダ: ${configuredCount}件。調査整理に加えて本文生成まで使えます。`
+      : "調査整理とプロンプト生成は使えます。.env に API キーを入れると本文生成まで使えます。";
+    els.llmSetupGuide.textContent = [
+      "1. Step 1 と Step 2 を埋める",
+      "2. .env に使いたい API キーを入れる",
+      "3. python server.py を起動したまま Step 3 で本文生成する",
+    ].join("\n");
+    return;
+  }
+
+  els.appModeTitle.textContent = "GitHub Pages版";
+  els.appModeText.textContent = "調査整理と生成プロンプト作成が使えます。本文生成はローカル版で使います。";
+  els.llmSetupGuide.textContent = [
+    "1. Pages版では調査と方針整理まで進める",
+    "2. 生成プロンプトをコピーする",
+    "3. ローカル版または ChatGPT / Claude / Gemini に渡して本文化する",
+  ].join("\n");
 }
 
 function renderAccountSelect() {

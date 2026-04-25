@@ -19,6 +19,10 @@
       <div class="hero-card">
         <p class="hero-card-label">作成フロー</p>
         <p class="flow-line">入力 → 調査 → 方針確認 → 本文作成</p>
+        <div class="mode-card">
+          <strong id="appModeTitle">利用モードを確認中</strong>
+          <p id="appModeText">現在の環境に応じて、使える機能を表示します。</p>
+        </div>
       </div>
     </header>
 
@@ -228,6 +232,15 @@
         </div>
 
         <div class="preview-stack">
+          <article class="preview-card">
+            <h3>使い方</h3>
+            <div id="llmSetupGuide" class="rich-output">
+              1. Step 1 と Step 2 を埋める
+              2. Step 3 でプロバイダとモデルを選ぶ
+              3. ローカル版なら API キー設定後に本文生成
+            </div>
+          </article>
+
           <article class="preview-card">
             <h3>プロバイダ設定</h3>
             <div class="field-grid">
