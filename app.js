@@ -472,7 +472,7 @@ function renderAppMode(providers) {
       : "調査整理とプロンプト生成は使えます。.env に API キーを入れると本文生成まで使えます。";
     els.llmSetupGuide.textContent = [
       "1. Step 1 と Step 2 を埋める",
-      "2. .env に使いたい API キーを入れる",
+      "2. .env に使いたい API キーを入れる。迷うならまず OpenAI でOK",
       "3. python server.py を起動したまま Step 3 で本文生成する",
     ].join("\n");
     return;
